@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Online Exam</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --ink: #1c2330; --muted: #5d6778; --line: #d9dde5;
+    --accent: #1f5fd1; --accent-ink: #ffffff; --ok: #1a7f46; --warn: #a15c00; --bad: #b3261e;
+    --warn-bg: #fff4dc; --sel: #e6efff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #12161d; --card: #1b212b; --ink: #e8ecf3; --muted: #9aa5b8; --line: #323b4a;
+            --accent: #6a9bff; --accent-ink: #0d1424; --ok: #55c98a; --warn: #f0b24a; --bad: #ff8a80;
+            --warn-bg: #3a2f14; --sel: #223152; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button { font: inherit; color: inherit; }
+  .hidden { display: none !important; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 0 0 12px; }
+  .muted { color: var(--muted); }
+  label { display: block; font-weight: 600; margin: 14px 0 4px; }
+  input[type=text] { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+                     background: var(--bg); color: var(--ink); font: inherit; }
+  .btn { padding: 10px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+         cursor: pointer; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .check { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0; font-weight: 400; }
+  .check input { margin-top: 5px; width: 18px; height: 18px; }
+  .camera { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+            border: 1px solid var(--line); margin: 16px 0; }
+  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); flex: none; vertical-align: middle; }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+  .error { color: var(--bad); margin-top: 10px; min-height: 1.5em; }
+  ul.rules { margin: 8px 0 0 18px; padding: 0; } ul.rules li { margin: 4px 0; }
+
+  .topbar { position: sticky; top: 0; z-index: 5; background: var(--card); border-bottom: 1px solid var(--line); }
+  .topbar .in { max-width: 1040px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 16px;
+                align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .timer { font-variant-numeric: tabular-nums; font-size: 1.4rem; font-weight: 700; }
+  .timer.low { color: var(--bad); }
+  .banner { background: #b3261e; color: #fff; border-bottom: 1px solid var(--line);
+            padding: 14px 16px; text-align: center; font-weight: 700; font-size: 1.15rem; }
+  #calview { position: fixed; inset: 0; background: #121212; z-index: 30; }
+  #calimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; background: #121212; }
+  #calcancel { position: absolute; top: 12px; right: 12px; opacity: .7; z-index: 31; }
+  #calpanel { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(10,14,22,.94); z-index: 32; padding: 24px; }
+  #calpanel .card { max-width: 520px; text-align: center; }
+  #calpanel .btnrow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+  #gazedot { position: fixed; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; z-index: 15;
+             background: rgba(26,127,70,.55); border: 2px solid #1a7f46; pointer-events: none;
+             transition: left .08s linear, top .08s linear; }
+  #gazedot.off { background: rgba(179,38,30,.6); border-color: #b3261e; }
+  .exam { display: grid; grid-template-columns: 1fr 260px; gap: 20px; align-items: start; }
+  @media (max-width: 820px) { .exam { grid-template-columns: 1fr; } }
+  .qnum { color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+  .qtext { font-size: 1.25rem; font-weight: 600; margin: 0 0 18px; }
+  .opt { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 12px 14px;
+         margin: 8px 0; border: 2px solid var(--line); border-radius: 10px; background: var(--card); cursor: pointer; }
+  .opt:hover { border-color: var(--accent); }
+  .opt[aria-checked=true] { border-color: var(--accent); background: var(--sel); }
+  .letter { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); display: grid;
+            place-items: center; font-weight: 700; flex: none; }
+  .opt[aria-checked=true] .letter { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .row { display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 20px;
+         flex-wrap: wrap; }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .nav { padding: 8px 0; border-radius: 8px; border: 2px solid var(--line); background: var(--card); cursor: pointer;
+         font-weight: 600; position: relative; }
+  .nav.answered { background: var(--sel); border-color: var(--accent); }
+  .nav.current { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .nav.marked::after { content: ""; position: absolute; top: 3px; right: 3px; width: 9px; height: 9px;
+                       border-radius: 50%; background: var(--warn); }
+  .legend { font-size: .85rem; color: var(--muted); margin-top: 12px; }
+  .notice { margin-top: 10px; color: var(--bad); font-size: .9rem; min-height: 1.3em; }
+  dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink);
+           padding: 24px; max-width: 440px; }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  .overlay { position: fixed; inset: 0; background: rgba(10,14,22,.92); color: #fff; z-index: 20; display: grid;
+             place-items: center; text-align: center; padding: 24px; }
+  .big { font-size: 2.2rem; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- Start screen -->
+<main id="start" class="wrap">
+  <div class="card">
+    <h1 id="title">Online Exam</h1>
+    <p class="muted" id="meta">Loading...</p>
+    <div class="camera" id="cam" role="status" aria-live="polite"><span class="dot" id="camdot"></span><span id="camtext">Checking the camera...</span></div>
+    <h2>Before you start</h2>
+    <ul class="rules">
+      <li>Sit in front of the camera with your face clearly visible and light in front of you.</li>
+      <li>Stay in full screen on this exam page. Switching to other windows is recorded.</li>
+      <li>One answer per question. You can go back and change answers until you submit or time runs out.</li>
+      <li>First you look at a row of dots on the screen so the camera can learn where your eyes are. Keep your head still. The exam clock starts after that.</li>
+      <li>The timer is kept by the server and cannot be paused.</li>
+    </ul>
+    <label for="name">Full name</label>
+    <input id="name" type="text" autocomplete="off" maxlength="80">
+    <label for="cid">Candidate ID</label>
+    <input id="cid" type="text" autocomplete="off" maxlength="40">
+    <label class="check"><input id="consent" type="checkbox">
+      <span>I understand that my webcam is analysed during this exam (face position, eyes and head direction) and that
+      events such as looking away or leaving this window are recorded for a human reviewer. No video is stored;
+      a snapshot is saved only when a flag is raised.</span></label>
+    <button id="go" class="btn primary" disabled>Start exam</button>
+    <div class="error" id="starterr" role="alert"></div>
+  </div>
+</main>
+
+<!-- Calibration screen: the picture comes from the camera program (dots, instructions) -->
+<div id="calview" class="hidden">
+  <img id="calimg" alt="Gaze calibration: look at each dot">
+  <button id="calcancel" class="btn">Cancel</button>
+  <div id="calpanel" class="hidden"><div class="card"><h2 id="caltitle"></h2><p id="calmsg"></p><div class="btnrow" id="calbtns"></div></div></div>
+</div>
+<div id="gazedot" class="hidden"></div>
+
+<!-- Exam screen -->
+<div id="examview" class="hidden">
+  <div class="topbar"><div class="in">
+    <div><strong id="etitle"></strong><div class="muted" id="who"></div></div>
+    <div style="display:flex;gap:18px;align-items:center">
+      <span class="muted" title="Camera monitoring"><span class="dot ok" id="liveDot"></span> Camera</span>
+      <div class="timer" id="timer" aria-live="off">--:--</div>
+    </div>
+  </div></div>
+  <div id="warn" class="banner hidden" role="alert" aria-live="assertive"></div>
+  <div class="wrap exam">
+    <section class="card" aria-labelledby="qtext">
+      <div class="qnum" id="qnum"></div>
+      <h2 class="qtext" id="qtext"></h2>
+      <div id="opts" role="radiogroup" aria-labelledby="qtext"></div>
+      <div class="row">
+        <button class="btn" id="prev">Previous</button>
+        <button class="btn" id="mark" aria-pressed="false">Mark for review</button>
+        <button class="btn primary" id="next">Next</button>
+      </div>
+      <div class="notice" id="notice" role="alert"></div>
+    </section>
+    <aside class="card">
+      <h2>Questions</h2>
+      <div class="grid" id="grid"></div>
+      <div class="legend">Filled = answered. Dot = marked for review. <span id="count"></span></div>
+      <p><button class="btn primary" id="submit" style="width:100%">Submit exam</button></p>
+    </aside>
+  </div>
+</div>
+
+<!-- Result screen -->
+<main id="done" class="wrap hidden">
+  <div class="card" style="text-align:center">
+    <h1>Exam submitted</h1>
+    <p class="muted" id="reason"></p>
+    <p class="big" id="score"></p>
+    <p class="muted" id="answered"></p>
+    <p class="muted">You can close this window.</p>
+  </div>
+</main>
+
+<dialog id="confirm">
+  <h2>Submit your exam?</h2>
+  <p id="confirmtext"></p>
+  <div class="row"><button class="btn" id="cancel">Keep working</button><button class="btn primary" id="yes">Submit now</button></div>
+</dialog>
+
+<div id="fs" class="overlay hidden" role="alertdialog" aria-label="Return to full screen">
+  <div><p class="big">Please return to full screen</p>
+  <p>The exam continues to run while you are away. This was recorded.</p>
+  <button class="btn primary" id="fsback">Return to full screen</button></div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const LETTERS = "ABCDEFGH";
+let token = null, exam = null, index = 0, remaining = 0, lastSync = 0, finished = false;
+let wasFullscreen = false, away = null, pending = {}, info = null;
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"},
+                                           body: JSON.stringify({token, ...body}), keepalive: true};
+  const r = await fetch(path, opts);
+  let data = {};
+  try { data = await r.json(); } catch (e) {}
+  return {ok: r.ok, status: r.status, data};
+}
+
+// ------------------------------- start screen -------------------------------
+function updateStartButton() {
+  const cam = info && info.camera ? info.camera.state : "starting";
+  const ready = $("name").value.trim() && $("cid").value.trim() && $("consent").checked && (cam === "running" || cam === "off");
+  $("go").disabled = !ready;
+}
+function showCamera(c) {
+  const dot = $("camdot");
+  dot.className = "dot";
+  let text;
+  if (c.state === "off") { dot.classList.add("warn"); text = c.message; }
+  else if (c.state === "starting") { text = "Starting the camera..."; }
+  else if (c.state === "error") { dot.classList.add("bad"); text = c.message; }
+  else if (!c.faces) { dot.classList.add("warn"); text = "Camera on, but no face found. Sit in front of the camera."; }
+  else if (c.faces > 1) { dot.classList.add("warn"); text = "More than one face is in view."; }
+  else if (c.light !== null && c.light < 60) { dot.classList.add("warn"); text = "Face found, but it is dark. Put a light in front of you."; }
+  else { dot.classList.add("ok"); text = "Camera check passed: your face is visible."; }
+  $("camtext").textContent = text;
+}
+async function pollInfo() {
+  try {
+    const r = await api("/api/info");
+    if (r.ok) { info = r.data; $("title").textContent = info.title;
+      document.title = info.title;
+      $("meta").textContent = `${info.questions} multiple-choice questions, ${info.minutes} minutes.`;
+      showCamera(info.camera); updateStartButton(); }
+  } catch (e) { $("camtext").textContent = "Cannot reach the exam server."; }
+}
+["name", "cid", "consent"].forEach(id => $(id).addEventListener("input", updateStartButton));
+$("go").addEventListener("click", async () => {
+  $("starterr").textContent = "";
+  $("go").disabled = true;
+  try { await document.documentElement.requestFullscreen(); wasFullscreen = true; } catch (e) { wasFullscreen = false; }
+  const r = await api("/api/start", {name: $("name").value, candidate_id: $("cid").value, consent: $("consent").checked});
+  if (!r.ok) { $("starterr").textContent = r.data.error || "Could not start."; updateStartButton();
+    if (document.fullscreenElement) document.exitFullscreen(); wasFullscreen = false; return; }
+  token = r.data.token;
+  try { sessionStorage.setItem("exam-token", token); } catch (e) {}
+  if (r.data.gaze) await calibrate(); else await beginExam();
+});
+
+// ------------------------------ gaze calibration ------------------------------
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let calRunning = false;
+function showOnly(id) { for (const x of ["start", "examview", "done", "calview"]) $(x).classList.toggle("hidden", x !== id); }
+function calPanel(title, msg, buttons) {
+  $("caltitle").textContent = title; $("calmsg").textContent = msg;
+  const row = $("calbtns"); row.textContent = "";
+  buttons.forEach(b => { const e = document.createElement("button"); e.className = "btn" + (b.primary ? " primary" : ""); e.textContent = b.label;
+    e.addEventListener("click", b.fn); row.appendChild(e); });
+  $("calpanel").classList.remove("hidden");
+}
+async function enterFullscreen() { try { await document.documentElement.requestFullscreen(); wasFullscreen = true; } catch (e) {} }
+async function pumpFrames() {
+  const img = $("calimg"); let last = null;
+  while (calRunning) {
+    try {
+      const r = await fetch(`/api/cal/frame?token=${encodeURIComponent(token)}&t=${Date.now()}`, {cache: "no-store"});
+      if (r.ok) { const url = URL.createObjectURL(await r.blob()); img.src = url; if (last) URL.revokeObjectURL(last); last = url; }
+    } catch (e) {}
+    await sleep(50);
+  }
+}
+async function calibrate() {
+  showOnly("calview"); $("calpanel").classList.add("hidden");
+  const r = await api("/api/cal/start", {w: window.innerWidth, h: window.innerHeight});
+  if (!r.ok) return calFailed(r.data.error || "The calibration could not start.");
+  calRunning = true; pumpFrames();
+  for (;;) {
+    await sleep(300);
+    const s = (await api("/api/cal/status", {})).data;
+    if (s.state === "running") continue;
+    calRunning = false;
+    if (s.state === "done" && s.good) return beginExam();
+    if (s.state === "done") return calFailed(`The calibration was not accurate enough (off by about ${Math.round(s.accuracy_px)} pixels). Sit closer, with light on your face, keep your head still, and try again.`);
+    return calFailed(s.state === "cancelled" ? "The calibration was cancelled." : "The camera could not see your eyes clearly enough. Check the light on your face, sit still and try again.");
+  }
+}
+function calFailed(msg) {
+  calPanel("Gaze calibration", msg, [
+    {label: "Calibrate again", primary: true, fn: () => { enterFullscreen().then(calibrate); }},
+    {label: "Continue without gaze tracking", fn: async () => { await api("/api/cal/skip", {reason: msg}); beginExam(); }}]);
+}
+$("calcancel").addEventListener("click", () => api("/api/cal/key", {key: "esc"}));
+document.addEventListener("keydown", e => { if (calRunning && e.code === "Space") { e.preventDefault(); api("/api/cal/key", {key: "space"}); } });
+async function beginExam() {
+  const r = await api("/api/begin", {});
+  if (!r.ok) return calFailed(r.data.error || "The exam could not start.");
+  await loadExam();
+}
+
+// --------------------------------- exam screen ---------------------------------
+async function loadExam() {
+  const r = await api("/api/exam", {});
+  if (!r.ok) { sessionStorage.removeItem("exam-token"); token = null; return pollInfo(); }
+  if (r.data.finished) return showDone(r.data);
+  if (!r.data.begun) {
+    showOnly("calview");
+    return calPanel("Your exam has not started", "Click to set up your gaze tracking and begin.",
+      [{label: "Continue", primary: true, fn: async () => { await enterFullscreen(); if (info && info.gaze) calibrate(); else beginExam(); }}]);
+  }
+  exam = r.data; remaining = exam.remaining; lastSync = performance.now();
+  showOnly("examview"); $("calpanel").classList.add("hidden");
+  // a reload drops full screen, which would quietly pause the gaze checks: ask the candidate to go back
+  if (!document.fullscreenElement) { wasFullscreen = true; $("fs").classList.remove("hidden"); }
+  $("etitle").textContent = info ? info.title : "Exam";
+  $("who").textContent = exam.candidate;
+  buildGrid(); show(0);
+  tick(); clearInterval(window._tick); window._tick = setInterval(tick, 500);
+  clearInterval(window._poll); window._poll = setInterval(sync, 3000);
+}
+function q() { return exam.questions[index]; }
+function buildGrid() {
+  const g = $("grid"); g.textContent = "";
+  exam.questions.forEach((qq, i) => {
+    const b = document.createElement("button");
+    b.className = "nav"; b.textContent = String(qq.number); b.dataset.i = i;
+    b.setAttribute("aria-label", `Question ${qq.number}`);
+    b.addEventListener("click", () => show(i));
+    g.appendChild(b);
+  });
+}
+function refreshGrid() {
+  let done = 0;
+  [...$("grid").children].forEach((b, i) => {
+    const id = exam.questions[i].id;
+    const answered = exam.answers[id] !== undefined;
+    done += answered;
+    b.classList.toggle("answered", answered);
+    b.classList.toggle("marked", exam.marked.includes(id));
+    b.classList.toggle("current", i === index);
+  });
+  $("count").textContent = `${done} of ${exam.questions.length} answered.`;
+}
+function show(i) {
+  index = Math.max(0, Math.min(exam.questions.length - 1, i));
+  const qq = q();
+  $("qnum").textContent = `Question ${qq.number} of ${exam.questions.length}`;
+  $("qtext").textContent = qq.text;
+  const box = $("opts"); box.textContent = "";
+  qq.options.forEach((text, k) => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(exam.answers[qq.id] === k));
+    const l = document.createElement("span"); l.className = "letter"; l.textContent = LETTERS[k];
+    const t = document.createElement("span"); t.textContent = text;
+    b.append(l, t);
+    b.addEventListener("click", () => choose(k));
+    box.appendChild(b);
+  });
+  $("prev").disabled = index === 0; $("next").disabled = index === exam.questions.length - 1;
+  const marked = exam.marked.includes(qq.id);
+  $("mark").setAttribute("aria-pressed", String(marked)); $("mark").textContent = marked ? "Unmark review" : "Mark for review";
+  refreshGrid();
+  api("/api/view", {qid: qq.id}).catch(() => {});
+}
+async function send(qid, choice) {
+  try {
+    const r = await api("/api/answer", {qid, choice});
+    if (r.ok) { delete pending[qid]; $("notice").textContent = ""; return; }
+    if (r.status === 409) { $("notice").textContent = "That answer was not saved: time is up."; delete pending[qid]; return; }
+  } catch (e) {}
+  pending[qid] = choice; $("notice").textContent = "Connection problem: your answer will be saved again automatically.";
+}
+function choose(k) {
+  const id = q().id;
+  if (exam.answers[id] === k) { delete exam.answers[id]; send(id, null); }   // click again to clear
+  else { exam.answers[id] = k; send(id, k); }
+  show(index);
+}
+$("prev").addEventListener("click", () => show(index - 1));
+$("next").addEventListener("click", () => show(index + 1));
+$("mark").addEventListener("click", async () => {
+  const id = q().id, on = !exam.marked.includes(id);
+  exam.marked = on ? [...exam.marked, id] : exam.marked.filter(x => x !== id);
+  show(index); api("/api/mark", {qid: id, on}).catch(() => {});
+});
+document.addEventListener("keydown", e => {
+  if (!exam || finished || $("examview").classList.contains("hidden") || $("confirm").open) return;
+  if (e.target && e.target.tagName === "INPUT") return;
+  const k = "abcdefgh".indexOf(e.key.toLowerCase());
+  if (e.key === "ArrowRight") show(index + 1);
+  else if (e.key === "ArrowLeft") show(index - 1);
+  else if (k >= 0 && k < q().options.length && !e.ctrlKey && !e.metaKey && !e.altKey) choose(k);
+  else if (e.key >= "1" && e.key <= "8" && +e.key <= q().options.length) choose(+e.key - 1);
+});
+
+// ------------------------------------ clock ------------------------------------
+function fmt(s) { s = Math.max(0, Math.ceil(s)); const m = Math.floor(s / 60); return String(m).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
+function tick() {
+  const left = remaining - (performance.now() - lastSync) / 1000;
+  $("timer").textContent = fmt(left);
+  $("timer").classList.toggle("low", left <= 60);
+  if (left <= 0 && !finished) sync();
+}
+async function sync() {
+  if (finished || !token) return;
+  for (const [qid, choice] of Object.entries(pending)) await send(qid, choice);
+  try {
+    const r = await api("/api/state", {fs: !!document.fullscreenElement, w: window.innerWidth, h: window.innerHeight});
+    if (!r.ok) return;
+    if (r.data.finished) return showDone(r.data);
+    remaining = r.data.remaining; lastSync = performance.now();
+    const w = $("warn"); w.textContent = r.data.warning || ""; w.classList.toggle("hidden", !r.data.warning);
+    $("liveDot").className = "dot " + (r.data.camera === "error" ? "bad" : r.data.camera === "off" ? "warn" : "ok");
+  } catch (e) {}
+}
+
+window.addEventListener("resize", () => { if (exam && !finished) sync(); });
+document.addEventListener("fullscreenchange", () => { if (exam && !finished) sync(); });
+async function gazeLoop() {
+  const dot = $("gazedot");
+  while (!finished) {
+    if (info && info.show_gaze && exam) {
+      try {
+        const g = (await api("/api/gaze", {})).data.gaze;
+        if (g) { dot.classList.remove("hidden"); dot.classList.toggle("off", g.off);
+          dot.style.left = Math.max(0, Math.min(window.innerWidth, g.x * window.innerWidth)) + "px";
+          dot.style.top = Math.max(0, Math.min(window.innerHeight, g.y * window.innerHeight)) + "px"; }
+        else dot.classList.add("hidden");
+      } catch (e) {}
+    } else dot.classList.add("hidden");
+    await sleep(120);
+  }
+  dot.classList.add("hidden");
+}
+
+// ------------------------------------ submit ------------------------------------
+$("submit").addEventListener("click", () => {
+  const unanswered = exam.questions.filter(x => exam.answers[x.id] === undefined).length;
+  $("confirmtext").textContent = unanswered ? `You have ${unanswered} unanswered question${unanswered > 1 ? "s" : ""}. You cannot change anything after submitting.`
+                                            : "You have answered every question. You cannot change anything after submitting.";
+  $("confirm").showModal();
+});
+$("cancel").addEventListener("click", () => $("confirm").close());
+$("yes").addEventListener("click", async () => {
+  for (const [qid, choice] of Object.entries(pending)) await send(qid, choice);
+  const r = await api("/api/submit", {});
+  $("confirm").close();
+  if (r.data && r.data.finished) showDone(r.data);
+});
+function showDone(d) {
+  finished = true; calRunning = false; clearInterval(window._tick); clearInterval(window._poll);
+  showOnly("done"); $("fs").classList.add("hidden");
+  $("reason").textContent = d.reason === "time up" ? "Time was up, so your exam was submitted automatically." : "Your answers were received.";
+  $("score").textContent = d.show_score && d.score !== undefined ? `You scored ${d.score} out of ${d.out_of}` : "";
+  $("answered").textContent = `Questions answered: ${d.answered} of ${d.out_of}`;
+  try { sessionStorage.removeItem("exam-token"); } catch (e) {}
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+// ----------------------------- things worth recording -----------------------------
+function report(name, detail) {
+  if (!token || finished) return;
+  api("/api/event", {name, detail: detail || "", qid: exam && exam.questions[index] ? q().id : ""}).catch(() => {});
+}
+let unloading = false;
+window.addEventListener("beforeunload", () => { unloading = true; });
+window.addEventListener("pagehide", () => { unloading = true; });
+function leave() { if (away === null && exam && !finished && !unloading) { away = performance.now(); report("LEFT_EXAM_WINDOW", "the exam window lost focus or was hidden"); } }
+function back() { if (away !== null) { const s = ((performance.now() - away) / 1000).toFixed(1); away = null; report("RETURNED_TO_EXAM", `away for ${s} s`); } }
+window.addEventListener("blur", leave);
+window.addEventListener("focus", back);
+document.addEventListener("visibilitychange", () => document.hidden ? leave() : back());
+document.addEventListener("fullscreenchange", () => {
+  if (document.fullscreenElement) { wasFullscreen = true; $("fs").classList.add("hidden"); return; }
+  if (wasFullscreen && exam && !finished) { $("fs").classList.remove("hidden"); report("FULLSCREEN_EXITED", "left full screen"); }
+});
+$("fsback").addEventListener("click", () => document.documentElement.requestFullscreen().catch(() => {}));
+document.addEventListener("copy", e => { if (exam && !finished) { e.preventDefault(); report("COPY_ATTEMPT", "copy or cut"); } });
+document.addEventListener("cut", e => { if (exam && !finished) { e.preventDefault(); report("COPY_ATTEMPT", "copy or cut"); } });
+document.addEventListener("paste", e => { if (exam && !finished) { e.preventDefault(); report("PASTE_ATTEMPT", "paste"); } });
+document.addEventListener("contextmenu", e => { if (exam && !finished) { e.preventDefault(); report("RIGHT_CLICK", ""); } });
+
+// ----------------------------------- start up -----------------------------------
+(async function init() {
+  await pollInfo();
+  let saved = null; try { saved = sessionStorage.getItem("exam-token"); } catch (e) {}
+  gazeLoop();
+  if (saved) { token = saved; await loadExam(); if (exam && !finished) report("PAGE_RELOADED", "the exam page was reloaded"); }
+  setInterval(() => { if (!token || finished) pollInfo(); }, 1500);
+})();
+</script>
+</body>
+</html>

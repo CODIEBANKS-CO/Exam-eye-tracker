@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invigilator view</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --ink:#1c2330; --muted:#5d6778; --line:#d9dde5; --accent:#1f5fd1;
+          --ok:#1a7f46; --bad:#b3261e; --warn:#a15c00; --screen:#eef3fb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#12161d; --card:#1b212b; --ink:#e8ecf3; --muted:#9aa5b8; --line:#323b4a; --accent:#6a9bff;
+            --ok:#55c98a; --bad:#ff8a80; --warn:#f0b24a; --screen:#202a3b; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; padding:20px 16px; }
+  h1 { font-size:1.35rem; margin:0 0 14px; } h2 { font-size:1rem; margin:0 0 10px; }
+  .grid { display:grid; grid-template-columns: 1.15fr 1fr; gap:16px; align-items:start; }
+  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+  .chip { border:1px solid var(--line); border-radius:999px; padding:3px 12px; font-size:.85rem; }
+  .chip.ok { color:var(--ok); border-color:var(--ok); } .chip.bad { color:var(--bad); border-color:var(--bad); font-weight:700; }
+  .chip.warn { color:var(--warn); border-color:var(--warn); }
+  canvas { width:100%; height:auto; display:block; border-radius:8px; background:var(--bg); }
+  dl { display:grid; grid-template-columns:auto 1fr; gap:4px 14px; margin:0 0 12px; } dt { color:var(--muted); } dd { margin:0; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; } th, td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; } .muted { color:var(--muted); }
+  .src-camera { color:var(--bad); font-weight:700; } .src-browser { color:var(--warn); font-weight:700; } .src-system { color:var(--muted); font-weight:700; }
+  #msg { margin:8px 0 0; color:var(--muted); font-size:.9rem; min-height:1.3em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Invigilator view <span class="muted" id="state" style="font-weight:400"></span></h1>
+  <div class="chips" id="chips"></div>
+  <div class="grid">
+    <section class="card">
+      <h2>Where the candidate is looking</h2>
+      <canvas id="map" width="760" height="470" aria-label="Gaze point on a map of the screen"></canvas>
+      <p id="msg"></p>
+    </section>
+    <section class="card">
+      <h2>Candidate</h2>
+      <dl id="info"></dl>
+      <h2>Flags and events</h2>
+      <table><thead><tr><th>Time</th><th>Flag</th><th>Q</th><th>Detail</th></tr></thead><tbody id="events"></tbody></table>
+      <p class="muted" id="noev">Nothing recorded yet.</p>
+    </section>
+  </div>
+</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const key = new URLSearchParams(location.search).get("key") || "";
+const trail = [];
+function chip(text, cls) { const s = document.createElement("span"); s.className = "chip " + (cls || ""); s.textContent = text; return s; }
+function fmt(s) { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
+
+function drawMap(g) {
+  const c = $("map"), ctx = c.getContext("2d"), W = c.width, H = c.height;
+  const css = getComputedStyle(document.body);
+  ctx.clearRect(0, 0, W, H);
+  // map covers -0.35 .. 1.35 of the screen in both directions, so looking away shows up outside the box
+  const lo = -0.35, span = 1.7, sx = x => (x - lo) / span * W, sy = y => (y - lo) / span * H;
+  ctx.fillStyle = css.getPropertyValue("--screen"); ctx.fillRect(sx(0), sy(0), sx(1) - sx(0), sy(1) - sy(0));
+  ctx.strokeStyle = css.getPropertyValue("--muted"); ctx.lineWidth = 2; ctx.strokeRect(sx(0), sy(0), sx(1) - sx(0), sy(1) - sy(0));
+  ctx.fillStyle = css.getPropertyValue("--muted"); ctx.font = "14px system-ui"; ctx.fillText("candidate's screen", sx(0) + 8, sy(0) + 20);
+  if (g) trail.push([g.x, g.y, g.off]); else if (trail.length) trail.push(null);
+  while (trail.length > 40) trail.shift();
+  for (let i = 1; i < trail.length; i++) {
+    const a = trail[i - 1], b = trail[i];
+    if (!a || !b) continue;
+    ctx.strokeStyle = "rgba(31,95,209," + (0.15 + 0.6 * i / trail.length) + ")"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(sx(a[0]), sy(a[1])); ctx.lineTo(sx(b[0]), sy(b[1])); ctx.stroke();
+  }
+  if (g) {
+    const px = Math.max(8, Math.min(W - 8, sx(g.x))), py = Math.max(8, Math.min(H - 8, sy(g.y)));
+    ctx.fillStyle = g.off ? css.getPropertyValue("--bad") : css.getPropertyValue("--ok");
+    ctx.beginPath(); ctx.arc(px, py, 11, 0, 7); ctx.fill();
+  }
+}
+
+async function tick() {
+  let d;
+  try {
+    const r = await fetch("/api/admin/live?key=" + encodeURIComponent(key), {cache: "no-store"});
+    if (r.status === 403) { $("state").textContent = "wrong or missing key"; return; }
+    d = await r.json();
+  } catch (e) { $("state").textContent = "server not reachable"; return; }
+  const chips = $("chips"); chips.textContent = "";
+  chips.appendChild(chip("Camera: " + d.camera, d.camera === "running" ? "ok" : d.camera === "error" ? "bad" : "warn"));
+  if (d.faces !== null && d.faces !== undefined) chips.appendChild(chip("Faces: " + d.faces, d.faces === 1 ? "ok" : "bad"));
+  if (d.light !== null && d.light !== undefined) chips.appendChild(chip("Light: " + d.light, d.light >= 60 ? "ok" : "warn"));
+  if (d.cal && d.cal.state === "done") chips.appendChild(chip("Gaze calibrated, about " + Math.round(d.cal.accuracy_px) + " px", d.cal.good ? "ok" : "warn"));
+  else chips.appendChild(chip("Gaze: " + (d.cal ? d.cal.state : "idle"), d.cal && d.cal.state === "skipped" ? "warn" : ""));
+  (d.active || []).forEach(n => chips.appendChild(chip("FLAG " + n, "bad")));
+
+  drawMap(d.gaze);
+  $("msg").textContent = !d.gaze ? "No gaze point right now (eyes shut, head turned far, not calibrated, or no exam running)."
+    : d.gaze.off ? "Looking OFF the screen." : d.gaze.paused ? "Gaze checks are paused (the exam window is not full screen)." : "Looking at the screen.";
+
+  const s = d.session, info = $("info"); info.textContent = "";
+  const add = (k, v) => { const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = v; info.append(dt, dd); };
+  if (!s) { $("state").textContent = "waiting for a candidate"; add("Status", "No exam started yet"); }
+  else {
+    $("state").textContent = s.finished ? "finished" : s.begun ? "exam in progress" : "calibrating";
+    add("Name", s.candidate); add("ID", s.candidate_id);
+    add("Status", s.finished ? ("Finished: " + s.reason) : s.begun ? "In progress" : "Setting up (gaze calibration)");
+    if (s.begun) { add("Question", s.question ? s.question + " of " + s.total : "-"); add("Answered", s.answered + " of " + s.total); if (!s.finished) add("Time left", fmt(s.remaining)); }
+    if (s.finished && s.score !== null) add("Score", s.score + " / " + s.total);
+    if (s.calibration && s.calibration.skipped) add("Gaze", "SKIPPED by candidate: " + (s.calibration.reason || ""));
+  }
+  const body = $("events"); body.textContent = "";
+  const ev = s ? s.events.slice().reverse() : [];
+  $("noev").style.display = ev.length ? "none" : "";
+  ev.slice(0, 40).forEach(e => {
+    const tr = document.createElement("tr");
+    [fmt(e.time_s), e.name, e.question || "-", (e.detail || "") + (e.seconds ? " (" + e.seconds + " s)" : "")].forEach((t, i) => {
+      const td = document.createElement("td"); td.textContent = t; if (i === 1) td.className = "src-" + e.source; tr.appendChild(td); });
+    body.appendChild(tr);
+  });
+}
+tick(); setInterval(tick, 300);
+</script>
+</body>
+</html>
