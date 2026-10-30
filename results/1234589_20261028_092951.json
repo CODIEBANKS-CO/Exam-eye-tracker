@@ -1,0 +1,217 @@
+{
+ "candidate": "Adejumo Oluwapelumi Ajinde",
+ "candidate_id": "1234589",
+ "started": "2026-10-28 09:29:51",
+ "finished": "2026-10-28 09:31:00",
+ "minutes_allowed": 20,
+ "minutes_used": 1.16,
+ "finish_reason": "submitted by candidate",
+ "score": 6,
+ "out_of": 15,
+ "answered": 7,
+ "questions": [
+  {
+   "number": 1,
+   "id": "q9",
+   "question": "What does the acronym API stand for?",
+   "chosen": "Application Programming Interface",
+   "correct_answer": "Application Programming Interface",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 9.8
+  },
+  {
+   "number": 2,
+   "id": "q4",
+   "question": "Which Git command creates a new branch and switches to it in one step?",
+   "chosen": "git branch -d feature",
+   "correct_answer": "git checkout -b feature",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 6.8
+  },
+  {
+   "number": 3,
+   "id": "q14",
+   "question": "In Scrum, what is the name of the fixed-length period in which a team completes a set of work?",
+   "chosen": "Sprint",
+   "correct_answer": "Sprint",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 3.6
+  },
+  {
+   "number": 4,
+   "id": "q7",
+   "question": "Which HTTP status code means the requested resource was not found?",
+   "chosen": "404",
+   "correct_answer": "404",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 4.1
+  },
+  {
+   "number": 5,
+   "id": "q11",
+   "question": "What is the value of 7 // 2 in Python?",
+   "chosen": "3",
+   "correct_answer": "3",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 10.6
+  },
+  {
+   "number": 6,
+   "id": "q1",
+   "question": "Which of these Python data types is immutable?",
+   "chosen": "tuple",
+   "correct_answer": "tuple",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 12.5
+  },
+  {
+   "number": 7,
+   "id": "q8",
+   "question": "Which data structure removes items in first-in, first-out (FIFO) order?",
+   "chosen": "Queue",
+   "correct_answer": "Queue",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 19.7
+  },
+  {
+   "number": 8,
+   "id": "q12",
+   "question": "Which attack inserts malicious SQL through an input field to change a database query?",
+   "chosen": null,
+   "correct_answer": "SQL injection",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 2.7
+  },
+  {
+   "number": 9,
+   "id": "q13",
+   "question": "Which protocol encrypts web traffic between a browser and a server?",
+   "chosen": null,
+   "correct_answer": "HTTPS",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 10,
+   "id": "q3",
+   "question": "Which SOLID principle says a class should have only one reason to change?",
+   "chosen": null,
+   "correct_answer": "Single Responsibility Principle",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 11,
+   "id": "q6",
+   "question": "Which SQL clause filters rows AFTER they have been grouped?",
+   "chosen": null,
+   "correct_answer": "HAVING",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 12,
+   "id": "q10",
+   "question": "Which level of testing checks individual functions or classes in isolation?",
+   "chosen": null,
+   "correct_answer": "Unit testing",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 13,
+   "id": "q2",
+   "question": "What does len({1, 2, 2, 3}) return in Python?",
+   "chosen": null,
+   "correct_answer": "3",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 14,
+   "id": "q15",
+   "question": "What is the main benefit of Python's `with` statement when working with files?",
+   "chosen": null,
+   "correct_answer": "It closes the file automatically, even if an error occurs",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 15,
+   "id": "q5",
+   "question": "What is the time complexity of binary search on a sorted array of n items?",
+   "chosen": null,
+   "correct_answer": "O(log n)",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  }
+ ],
+ "gaze_calibration": {
+  "screen": [
+   1280,
+   720
+  ],
+  "accuracy_px": 176.6,
+  "accuracy_fraction": 0.1203,
+  "cross_check_px": 226.4,
+  "good": true
+ },
+ "flag_counts": {
+  "REPEATED_GLANCES": 3,
+  "NO_FACE": 1
+ },
+ "flags": [
+  {
+   "time_s": 25.7,
+   "question": 5,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 25 s",
+   "seconds": 0.0,
+   "snapshot": "20261028_093016_REPEATED_GLANCES.jpg"
+  },
+  {
+   "time_s": 27.3,
+   "question": 5,
+   "source": "camera",
+   "name": "NO_FACE",
+   "detail": "",
+   "seconds": 2.0,
+   "snapshot": "20261028_093018_NO_FACE.jpg"
+  },
+  {
+   "time_s": 44.1,
+   "question": 6,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 25 s",
+   "seconds": 0.0,
+   "snapshot": "20261028_093035_REPEATED_GLANCES.jpg"
+  },
+  {
+   "time_s": 60.4,
+   "question": 7,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 25 s",
+   "seconds": 0.0,
+   "snapshot": "20261028_093051_REPEATED_GLANCES.jpg"
+  }
+ ],
+ "note": "Flags are evidence for a human reviewer, not proof of anything."
+}

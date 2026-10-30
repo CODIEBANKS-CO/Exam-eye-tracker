@@ -23,6 +23,7 @@ from urllib.parse import parse_qs, urlsplit
 from facelib import config as cfg
 from facelib.events import log_note
 
+from .auth import AdminAuth
 from .engine import ExamSession, QuestionError, load_questions  # noqa: F401
 from .monitor import warning_text
 
@@ -45,7 +46,8 @@ class ExamApp:
         self.result_path = None
         self.lock = threading.RLock()
         self._camera_loss_logged = False
-        self.admin_key = cfg.EXAM_ADMIN_KEY or secrets.token_urlsafe(9)
+        self.auth = AdminAuth(cfg.EXAM_ADMIN_KEY)     # the invigilator key is made here, once per run
+        self.session_number = 0                       # counts candidates registered since the server started
 
     # ------------------------------ helpers -------------------------------
     def _new_session(self, name, candidate_id):
@@ -63,10 +65,10 @@ class ExamApp:
                 "show_score": cfg.EXAM_SHOW_SCORE, "gaze": self.gaze_wanted(),
                 "show_gaze": bool(cfg.EXAM_SHOW_GAZE_DOT)}
 
-    def _on_flag(self, name, seconds, detail):
+    def _on_flag(self, name, seconds, detail, snapshot=None):
         with self.lock:
             if self.session is not None and self.session.finished is None:
-                self.session.add_event("camera", name, detail, seconds)
+                self.session.add_event("camera", name, detail, seconds, snapshot)
 
     def _context(self):
         s = self.session
@@ -132,6 +134,11 @@ class ExamApp:
                 return 200, self.info()
             if method == "POST" and path == "/api/start":
                 return self._start(body)
+            if method == "POST" and path == "/api/admin/login":
+                return self._admin_login(body)
+            if method == "POST" and path == "/api/admin/logout":
+                self.auth.logout(body.get("token"))
+                return 200, {"ok": True}
             s = self._auth(body)
             if s is None:
                 return 401, {"error": "No exam session for this token. Reload the page."}
@@ -193,6 +200,7 @@ class ExamApp:
         if state == "starting":
             return 503, {"error": "The camera is still starting. Wait a moment and try again."}
         self.session, self.result_path, self._camera_loss_logged = self._new_session(name, cid), None, False
+        self.session_number += 1
         log_note("EXAM_REGISTERED", f"{name} ({cid})")
         return 200, {"token": self.session.token, "gaze": self.gaze_wanted()}
 
@@ -261,28 +269,78 @@ class ExamApp:
         return 200, {"ok": True}
 
     # ----------------------------- invigilator view -----------------------------
-    def admin_live(self, key):
-        """What the /admin page shows. None if the key is wrong."""
-        if not hmac.compare_digest(str(key or ""), self.admin_key):
+    def _admin_login(self, body):
+        outcome, value = self.auth.login(body.get("key"))
+        if outcome == "ok":
+            log_note("INVIGILATOR_SIGNED_IN")
+            return 200, {"token": value, "title": self.title}
+        if outcome == "locked":
+            wait = max(1, int(round(value)))
+            log_note("INVIGILATOR_SIGN_IN_LOCKED", f"too many wrong keys, locked for {wait} s")
+            return 429, {"error": f"Too many wrong keys. Wait {wait} seconds and try again.", "retry_seconds": wait}
+        log_note("INVIGILATOR_WRONG_KEY")
+        return 403, {"error": "That key is not right."}
+
+    def admin_live(self, token):
+        """What the invigilator page shows. None if the sign-in token is not valid."""
+        if not self.auth.valid(token):
             return None
         with self.lock:
             self._check_time()
             s = self.session
             status = self.monitor.status
-            out = {"camera": status["state"], "faces": status.get("faces"), "light": status.get("light"),
+            out = {"title": self.title, "minutes": cfg.EXAM_MINUTES, "off_margin": cfg.GAZE_OFF_MARGIN,
+                   "camera": status["state"], "camera_message": status.get("message", ""),
+                   "faces": status.get("faces"), "light": status.get("light"),
                    "active": status.get("active", []), "gaze": self.monitor.gaze(),
-                   "cal": self.monitor.calibration(), "session": None}
+                   "cal": self.monitor.calibration(), "session_number": self.session_number, "session": None}
             if s is not None:
-                answered = len(s.answers)
                 out["session"] = {
                     "candidate": s.name, "candidate_id": s.candidate_id, "begun": s.begun,
                     "finished": s.finished is not None, "reason": s.finish_reason,
                     "remaining": round(s.remaining(), 1), "question": s.current_number,
-                    "answered": answered, "total": len(s.order),
-                    "events": s.events[-60:],
+                    "answered": len(s.answers), "total": len(s.order),
+                    "events": s.events[-60:], "event_count": len(s.events),
                     "score": s.finished["score"] if s.finished else None,
                     "calibration": s.calibration}
             return out
+
+    def admin_history(self, token, limit=12):
+        """The last finished candidates (from results/summary.csv), newest first. None if not signed in."""
+        if not self.auth.valid(token):
+            return None
+        path = os.path.join(cfg.EXAM_RESULTS_DIR, "summary.csv")
+        try:
+            with open(path, newline="", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+        except OSError:
+            rows = []
+        keep = ("finished", "candidate", "candidate_id", "score", "out_of", "finish_reason", "flag_count")
+        return [{k: r.get(k, "") for k in keep} for r in reversed(rows[-limit:])]
+
+    def admin_snapshot(self, token, name):
+        """The picture taken when a camera flag fired, as JPEG bytes. Only pictures that belong to the
+        current candidate's flags can be asked for, so no other file on the computer is reachable."""
+        if not self.auth.valid(token):
+            return None
+        with self.lock:
+            s = self.session
+            allowed = set() if s is None else {e.get("snapshot") for e in s.events}
+        if not name or name != os.path.basename(name) or name not in allowed:
+            return None
+        try:
+            with open(os.path.join(cfg.SNAPSHOT_DIR, name), "rb") as f:
+                return f.read()
+        except OSError:
+            return None
+
+    def admin_result(self, token):
+        """The finished candidate's full result record, or None."""
+        if not self.auth.valid(token):
+            return None
+        with self.lock:
+            s = self.session
+            return None if s is None or s.finished is None else s.finished
 
 
 def make_handler(app):
@@ -302,8 +360,19 @@ def make_handler(app):
             self.end_headers()
             self.wfile.write(data)
 
+        def _allowed_host(self):
+            """On a loopback-only server only 127.0.0.1 / localhost names are served, which stops a
+            web page on another site from reaching the exam through a rebinding trick."""
+            if cfg.EXAM_HOST not in ("127.0.0.1", "localhost", "::1"):
+                return True
+            host = self.headers.get("Host", "")
+            name = host.rsplit(":", 1)[0] if not host.startswith("[") else host.split("]")[0] + "]"
+            return name in ("127.0.0.1", "localhost", "[::1]")
+
         def _allowed_origin(self):
             """Block pages from other sites poking the local server (a browser sends Origin)."""
+            if not self._allowed_host():
+                return False
             origin = self.headers.get("Origin")
             if not origin:
                 return True
@@ -311,22 +380,36 @@ def make_handler(app):
             return origin in (f"http://{host}",)
 
         def do_GET(self):
+            if not self._allowed_host():
+                return self._send(403, {"error": "Forbidden"})
             parts = urlsplit(self.path)
             path, query = parts.path, parse_qs(parts.query)
+            token = self.headers.get("X-Admin-Token", "")
             if path == "/api/cal/frame":
                 data = app.calibration_frame(query.get("token", [""])[0])
                 if data is None:
                     return self._send(404, {"error": "No picture"})
                 return self._send(200, None, "image/jpeg", data)
-            if path == "/api/admin/live":
-                data = app.admin_live(query.get("key", [""])[0])
+            if path in ("/api/admin/live", "/api/admin/history", "/api/admin/result"):
+                data = {"/api/admin/live": app.admin_live, "/api/admin/history": app.admin_history,
+                        "/api/admin/result": app.admin_result}[path](token)
+                if data is None and not app.auth.valid(token):
+                    return self._send(403, {"error": "Not signed in"})
                 if data is None:
-                    return self._send(403, {"error": "Wrong key"})
+                    return self._send(404, {"error": "Nothing to show yet"})
                 return self._send(200, data)
+            if path == "/api/admin/snapshot":
+                if not app.auth.valid(token):
+                    return self._send(403, {"error": "Not signed in"})
+                data = app.admin_snapshot(token, query.get("name", [""])[0])
+                if data is None:
+                    return self._send(404, {"error": "No such picture"})
+                return self._send(200, None, "image/jpeg", data)
             if path.startswith("/api/"):
                 status, payload = app.handle("GET", path, {})
                 return self._send(status, payload)
-            name = {"/": "index.html", "/index.html": "index.html", "/admin": "admin.html"}.get(path, path.lstrip("/"))
+            name = {"/": "index.html", "/index.html": "index.html", "/admin": "admin.html",
+                    "/invigilator": "admin.html"}.get(path, path.lstrip("/"))
             full = os.path.normpath(os.path.join(STATIC_DIR, name))
             if not full.startswith(STATIC_DIR + os.sep) or not os.path.isfile(full):
                 return self._send(404, {"error": "Not found"})

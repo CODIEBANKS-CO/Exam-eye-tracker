@@ -125,9 +125,9 @@ LOW_LIGHT_WARN = 40        # show an "add light" message below this
 # GLANCE_COUNT of them within GLANCE_WINDOW_SECONDS. The preview shows the running count.
 GLANCE_CHECK = True
 GLANCE_MIN_SECONDS = 0.5     # a look-away shorter than this is ignored (noise, a blink of movement)
-GLANCE_GAP_SECONDS = 0.4     # back to the screen for less than this = still the same look-away
+GLANCE_GAP_SECONDS = 0.45     # back to the screen for less than this = still the same look-away
 GLANCE_COUNT = 4             # this many look-aways ...
-GLANCE_WINDOW_SECONDS = 60.0 # ... inside this many seconds raise the flag
+GLANCE_WINDOW_SECONDS = 15.0 # ... inside this many seconds raise the flag
 GLANCE_FLAG_SECONDS = 5.0    # the red banner stays up this long; counting then starts again from zero
 
 # ----------------------- expressions (optional) --------------------------
@@ -194,4 +194,4 @@ EXAM_GAZE = True                   # calibrate each candidate's gaze first, then
 EXAM_MAX_CAL_ERROR_FRACTION = 0.15 # a calibration worse than this (fraction of the screen diagonal) is offered again
 EXAM_SHOW_GAZE_DOT = False         # draw the candidate's gaze point on their exam page (for the demo; --show-gaze)
 EXAM_GAZE_SIZE_TOLERANCE = 0.03    # window size may differ this much from the calibration, else gaze checks pause
-EXAM_ADMIN_KEY = 123              # key for the /admin page; None = a new random key each time the server starts
+EXAM_ADMIN_KEY = None              # invigilator key; None = a new one like K7QM-4XD2 is made each time the program starts

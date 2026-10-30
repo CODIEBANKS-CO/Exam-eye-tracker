@@ -144,12 +144,29 @@ where the candidate was.
 * **Full screen matters.** The mapping is only valid at the window size it was calibrated at. Leaving full
   screen or resizing (or reloading the page) pauses the gaze checks and shows a "Return to full screen"
   overlay; the leave is recorded as `FULLSCREEN_EXITED`.
-* **Invigilator view.** The program prints an address like `http://127.0.0.1:8765/admin?key=...` (keep it
-  private; the key changes each run unless you set `EXAM_ADMIN_KEY`). It shows live: camera, faces, light,
-  calibration accuracy, the active flags, the candidate's question and time left, every flag with its time
-  and question, and a map of the candidate's screen with the gaze point moving on it (red when it leaves the
-  screen). Open it on another browser window or computer on the same machine; it is not shown to the
-  candidate. `--show-gaze` additionally draws the gaze point on the candidate's own page for the demo.
+* **Invigilator console.** Every time the program starts it makes a new key (for example `K7QM-4XD2`),
+  prints it, and opens the invigilator console in a second browser window with the key already in the
+  link (`http://127.0.0.1:8765/admin#key=K7QM-4XD2`), so there is nothing to type. The key leaves the
+  address bar at once and is never sent in a web address again; the page keeps a longer sign-in token for
+  its browser tab. If you open `/admin` (or `/invigilator`) without the link, a sign-in page asks for the
+  key: case, spaces and the hyphen do not matter. Five wrong keys lock sign-in for 30 seconds. Sign-ins,
+  wrong keys and locks are written to `events.csv` (never the key itself). If the program is restarted the
+  key changes and the console asks for the new one, saying why. `--no-invigilator-window` stops the second
+  window opening (the key and link are still printed); `EXAM_ADMIN_KEY` in `facelib/config.py` sets your
+  own fixed key instead.
+
+  The console shows, in plain words: a large status band (waiting, setting up, "All clear", or the active
+  flags in red), the candidate, question, answers and time left, camera, faces, light and calibration
+  accuracy, a map of the candidate's screen with the gaze point moving on it (red when it leaves the screen,
+  with a dashed line where a look-away is flagged), every flag and event with its time and question (with
+  All / Camera / Browser / System filters; each camera flag shows the small picture the camera took at that
+  moment, click it for a large view, and the red band shows the picture of the flag that is active), the earlier candidates from `results/summary.csv`, and a button
+  to download the finished candidate's result. "Sound alerts" beeps on each new flag (off until you press
+  it), and the browser tab title shows "(!)" while a flag is active. The pictures are the same files as in `snapshots/` (the result file names the one for each flag); only
+  a signed-in invigilator can fetch them, and only those belonging to the current candidate's flags. They are
+  pictures of a person, so decide how long to keep them. It is not shown to the candidate.
+  `--show-gaze` additionally draws the gaze point on the candidate's own page for the demo. The console
+  only answers `127.0.0.1` / `localhost` addresses and refuses requests from other web sites.
 * **Questions.** `questions.json`: `id`, `text`, `options` (2 to 8) and `answer` (the 0-based
   number of the correct option). A mistake in the file is reported with the question number
   when the program starts. The 15 questions shipped are samples. Questions and options are
@@ -205,6 +222,8 @@ monitor (including the calibration and the gaze tracking) was tested with a simu
 accuracy inside the exam is whatever your own calibration gives (about 2.5 cm on your laptop last time). It has not been run with your webcam together with
 your browser yet. Fullscreen and window-leave detection behave a little differently between
 browsers, so try the browser you will use for the demo.
+
+The invigilator console was tested in Chromium. Not checked: whether your browser opens the second window by itself (if it opens a tab instead, or nothing, use the printed link), and the sound alert on your computer.
 
 Everything was tested with simulated faces (the covered-eye measure was also checked on one
 real photo). Not yet run: the real MediaPipe model and the two identity models (YuNet and

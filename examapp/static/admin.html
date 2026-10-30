@@ -3,124 +3,533 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Invigilator view</title>
+<title>Invigilator console</title>
 <style>
-  :root { --bg:#f4f5f7; --card:#fff; --ink:#1c2330; --muted:#5d6778; --line:#d9dde5; --accent:#1f5fd1;
-          --ok:#1a7f46; --bad:#b3261e; --warn:#a15c00; --screen:#eef3fb; }
+  /* Tokens. One status band carries the colour; everything else stays quiet. */
+  :root {
+    --bar:#15233b; --bar-ink:#eef2f8;
+    --paper:#eef1f4; --surface:#ffffff; --ink:#15233b; --muted:#566377; --line:#d3d9e0;
+    --accent:#0e6f7a; --accent-ink:#ffffff;
+    --ok:#17794c; --warn:#946200; --bad:#b3261e; --alert-bg:#fbe4e1; --screen:#e4ebf3;
+    --band-wait:#3b4a63; --band-info:#2a5db0; --band-ok:#17794c; --band-alert:#b3261e; --band-done:#3b4a63;
+    --display: Bahnschrift, "DIN Alternate", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#12161d; --card:#1b212b; --ink:#e8ecf3; --muted:#9aa5b8; --line:#323b4a; --accent:#6a9bff;
-            --ok:#55c98a; --bad:#ff8a80; --warn:#f0b24a; --screen:#202a3b; } }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-  .wrap { max-width:1180px; margin:0 auto; padding:20px 16px; }
-  h1 { font-size:1.35rem; margin:0 0 14px; } h2 { font-size:1rem; margin:0 0 10px; }
-  .grid { display:grid; grid-template-columns: 1.15fr 1fr; gap:16px; align-items:start; }
-  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
-  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
-  .chip { border:1px solid var(--line); border-radius:999px; padding:3px 12px; font-size:.85rem; }
-  .chip.ok { color:var(--ok); border-color:var(--ok); } .chip.bad { color:var(--bad); border-color:var(--bad); font-weight:700; }
-  .chip.warn { color:var(--warn); border-color:var(--warn); }
-  canvas { width:100%; height:auto; display:block; border-radius:8px; background:var(--bg); }
-  dl { display:grid; grid-template-columns:auto 1fr; gap:4px 14px; margin:0 0 12px; } dt { color:var(--muted); } dd { margin:0; font-weight:600; }
-  table { width:100%; border-collapse:collapse; font-size:.88rem; } th, td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--muted); font-weight:600; } .muted { color:var(--muted); }
-  .src-camera { color:var(--bad); font-weight:700; } .src-browser { color:var(--warn); font-weight:700; } .src-system { color:var(--muted); font-weight:700; }
-  #msg { margin:8px 0 0; color:var(--muted); font-size:.9rem; min-height:1.3em; }
+    :root {
+      --bar:#0a121d; --bar-ink:#e7ecf4;
+      --paper:#0f1722; --surface:#17212f; --ink:#e7ecf4; --muted:#9aa8bd; --line:#2b3748;
+      --accent:#4fc3cf; --accent-ink:#06222a;
+      --ok:#4cc58a; --warn:#f0b24a; --bad:#ff8d84; --alert-bg:#3b1714; --screen:#1c2a3d;
+      --band-wait:#33415a; --band-info:#2a5db0; --band-ok:#1b6b45; --band-alert:#a32a22; --band-done:#33415a;
+    }
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+         font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  h1, h2 { font-family:var(--display); font-weight:600; margin:0; letter-spacing:.01em; }
+  h2 { font-size:1.05rem; margin-bottom:10px; }
+  button { font:inherit; cursor:pointer; }
+  :focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .muted { color:var(--muted); }
+  .num { font-variant-numeric:tabular-nums; }
+
+  /* ----- sign in ----- */
+  #signin { max-width:31rem; margin:12vh auto 0; padding:0 20px; }
+  #signin h1 { font-size:2rem; margin-bottom:10px; }
+  #signin p { margin:0 0 18px; max-width:46ch; }
+  #signin form { display:flex; gap:10px; flex-wrap:wrap; }
+  #key { flex:1 1 14rem; min-width:0; width:0; font:600 1.6rem/1.2 var(--mono); letter-spacing:.14em; text-transform:uppercase;
+         padding:10px 14px; border:2px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); }
+  #key:focus { border-color:var(--accent); }
+  .primary { background:var(--accent); color:var(--accent-ink); border:0; border-radius:8px; padding:10px 22px; font-weight:600; }
+  .primary:disabled { opacity:.6; cursor:default; }
+  #signinMsg { min-height:1.6em; margin:12px 0 0; color:var(--bad); font-weight:600; }
+  #signin .hint { margin-top:28px; color:var(--muted); font-size:.92rem; }
+
+  /* ----- top bar ----- */
+  .bar { background:var(--bar); color:var(--bar-ink); display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:10px 20px; }
+  .bar h1 { font-size:1.15rem; margin-right:auto; }
+  .bar h1 small { display:block; font:400 .8rem/1.2 system-ui,sans-serif; opacity:.75; letter-spacing:0; }
+  .live { display:inline-flex; align-items:center; gap:7px; font-size:.9rem; }
+  .dot { width:.7em; height:.7em; border-radius:50%; background:#8a96a8; display:inline-block; flex:none; }
+  .dot.ok { background:var(--ok); } .dot.warn { background:var(--warn); } .dot.bad { background:var(--bad); }
+  .bar .dot.ok { background:#5fd49a; } .bar .dot.bad { background:#ff8d84; }
+  .ghost { background:transparent; color:inherit; border:1px solid rgba(255,255,255,.35); border-radius:8px; padding:5px 12px; }
+  .ghost[aria-pressed="true"] { background:rgba(255,255,255,.18); border-color:rgba(255,255,255,.7); }
+
+  /* ----- status band: the one loud element ----- */
+  .band { padding:18px 20px 20px; color:#fff; background:var(--band-wait); transition:background-color .25s; }
+  .band.info { background:var(--band-info); } .band.ok { background:var(--band-ok); }
+  .band.alert { background:var(--band-alert); } .band.done { background:var(--band-done); }
+  .band { display:flex; align-items:center; gap:18px; }
+  .band-text { flex:1 1 auto; min-width:0; }
+  .bandpic { flex:none; padding:0; border:2px solid rgba(255,255,255,.85); border-radius:8px; overflow:hidden; background:#000; }
+  .bandpic img { display:block; width:132px; height:auto; }
+  .band-main { margin:0; font:600 clamp(1.5rem,3.6vw,2.4rem)/1.15 var(--display); }
+  .band-sub { margin:4px 0 0; font-size:1rem; opacity:.92; }
+
+  /* ----- layout ----- */
+  .layout { display:grid; grid-template-columns:minmax(230px,290px) minmax(0,1fr) minmax(280px,380px); gap:0; align-items:stretch; }
+  .layout > section { padding:18px 20px; min-width:0; }
+  .layout > section + section { border-left:1px solid var(--line); }
+  @media (max-width:1150px) {
+    .layout { grid-template-columns:minmax(230px,290px) minmax(0,1fr); }
+    .layout > .log { grid-column:1 / -1; border-left:0; border-top:1px solid var(--line); }
+  }
+  @media (max-width:720px) {
+    .layout { grid-template-columns:1fr; }
+    .layout > section + section { border-left:0; border-top:1px solid var(--line); }
+  }
+
+  dl.rows { margin:0 0 22px; }
+  dl.rows > div { display:flex; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px solid var(--line); }
+  dl.rows dt { color:var(--muted); }
+  dl.rows dd { margin:0; font-weight:600; text-align:right; display:inline-flex; align-items:center; gap:7px; justify-content:flex-end; min-width:0; overflow-wrap:anywhere; }
+  .timeleft { font:600 2.4rem/1.1 var(--display); margin:4px 0 14px; }
+  .timeleft small { display:block; font:400 .85rem/1.4 system-ui,sans-serif; color:var(--muted); }
+  .timeleft.low { color:var(--bad); }
+  .meter { height:8px; border-radius:4px; background:var(--line); overflow:hidden; margin:2px 0 14px; }
+  .meter > span { display:block; height:100%; background:var(--accent); width:0; }
+  .secondary { background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:7px 14px; }
+
+  /* ----- gaze map ----- */
+  #map { width:100%; display:block; border:1px solid var(--line); border-radius:8px; background:var(--paper); }
+  #mapMsg { margin:10px 0 4px; font-weight:600; min-height:1.5em; }
+  .legend { margin:0; font-size:.88rem; color:var(--muted); }
+
+  /* ----- log ----- */
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:10px; }
+  .seg button { background:transparent; color:var(--ink); border:0; padding:5px 12px; border-right:1px solid var(--line); }
+  .seg button:last-child { border-right:0; }
+  .seg button[aria-pressed="true"] { background:var(--accent); color:var(--accent-ink); font-weight:600; }
+  .tally { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; padding:0; list-style:none; }
+  .tally li { border:1px solid var(--line); border-radius:999px; padding:1px 10px; font-size:.85rem; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th, td { text-align:left; padding:6px 8px 6px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  td.flag { font-weight:600; } td.flag.camera { color:var(--bad); } td.flag.browser { color:var(--warn); }
+  tr.minor td { color:var(--muted); } tr.minor td.flag { font-weight:400; }
+  tr.fresh td { animation:fresh 3.5s ease-out; }
+  @keyframes fresh { from { background:var(--alert-bg); } to { background:transparent; } }
+  @media (prefers-reduced-motion:reduce) { tr.fresh td { animation:none; } .band { transition:none; } }
+  .thumb { display:block; margin-top:5px; padding:0; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:var(--paper); }
+  .thumb img { display:block; width:84px; min-height:40px; height:auto; }
+  dialog { border:0; border-radius:12px; padding:0; max-width:min(92vw,880px); background:var(--surface); color:var(--ink); }
+  dialog::backdrop { background:rgba(8,14,24,.72); }
+  dialog img { display:block; width:100%; height:auto; background:#000; }
+  dialog .cap { margin:0; padding:12px 16px 4px; font-weight:600; }
+  dialog .note { margin:0; padding:0 16px 12px; color:var(--muted); font-size:.9rem; }
+  dialog form { padding:0 16px 14px; }
+  .empty { color:var(--muted); margin:8px 0; }
+
+  @media (max-width:720px) { .bandpic img { width:92px; } }
+  .earlier { padding:18px 20px 32px; border-top:1px solid var(--line); }
+  .earlier table { max-width:60rem; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Invigilator view <span class="muted" id="state" style="font-weight:400"></span></h1>
-  <div class="chips" id="chips"></div>
-  <div class="grid">
-    <section class="card">
-      <h2>Where the candidate is looking</h2>
-      <canvas id="map" width="760" height="470" aria-label="Gaze point on a map of the screen"></canvas>
-      <p id="msg"></p>
-    </section>
-    <section class="card">
+
+<main id="signin" hidden>
+  <h1>Invigilator sign-in</h1>
+  <p>Enter the key shown in the terminal window where the exam program is running.</p>
+  <form id="signinForm" autocomplete="off">
+    <input id="key" type="text" maxlength="40" spellcheck="false" autocapitalize="characters" autocomplete="off"
+           aria-label="Invigilator key" placeholder="XXXX-XXXX">
+    <button class="primary" id="signinBtn" type="submit">Sign in</button>
+  </form>
+  <p id="signinMsg" role="alert"></p>
+  <p class="hint">When the exam program opens this page by itself, the key is already in the link and you are signed in
+    without typing it. The key changes every time the program starts.</p>
+</main>
+
+<div id="console" hidden>
+  <header class="bar">
+    <h1><span id="title">Exam</span><small>Invigilator console</small></h1>
+    <span class="live" id="live"><span class="dot" id="liveDot"></span><span id="liveText">Connecting</span></span>
+    <button class="ghost" id="sound" type="button" aria-pressed="false">Sound alerts: off</button>
+    <button class="ghost" id="signout" type="button">Sign out</button>
+  </header>
+
+  <section class="band" id="band" role="status" aria-live="polite">
+    <div class="band-text">
+      <p class="band-main" id="bandMain">Connecting</p>
+      <p class="band-sub" id="bandSub"></p>
+    </div>
+    <button class="bandpic" id="bandPic" type="button" hidden aria-label="Open the picture taken when this was flagged"><img id="bandImg" alt="Picture taken when this was flagged"></button>
+  </section>
+
+  <div class="layout">
+    <section aria-label="Candidate and monitor">
       <h2>Candidate</h2>
-      <dl id="info"></dl>
+      <dl class="rows" id="cand"></dl>
+      <div class="timeleft num" id="timeleft" hidden></div>
+      <div class="meter" id="meter" hidden role="progressbar" aria-label="Questions answered" aria-valuemin="0"><span></span></div>
+      <button class="secondary" id="download" type="button" hidden>Download result (JSON)</button>
+      <h2 style="margin-top:22px">Monitor</h2>
+      <dl class="rows" id="mon"></dl>
+    </section>
+
+    <section aria-label="Where the candidate is looking">
+      <h2>Where the candidate is looking</h2>
+      <canvas id="map" aria-label="Gaze point on a map of the candidate's screen"></canvas>
+      <p id="mapMsg"></p>
+      <p class="legend">The grey box is the candidate's screen. Green: looking at the screen. Red: looking away.
+        The dashed line is where a look-away is flagged. Accurate to a few centimetres, so treat it as a guide.</p>
+    </section>
+
+    <section class="log" aria-label="Flags and events">
       <h2>Flags and events</h2>
-      <table><thead><tr><th>Time</th><th>Flag</th><th>Q</th><th>Detail</th></tr></thead><tbody id="events"></tbody></table>
-      <p class="muted" id="noev">Nothing recorded yet.</p>
+      <div class="seg" role="group" aria-label="Show">
+        <button type="button" data-f="all" aria-pressed="true">All</button>
+        <button type="button" data-f="camera" aria-pressed="false">Camera</button>
+        <button type="button" data-f="browser" aria-pressed="false">Browser</button>
+        <button type="button" data-f="system" aria-pressed="false">System</button>
+      </div>
+      <ul class="tally" id="tally"></ul>
+      <table><thead><tr><th>Time</th><th>What happened</th><th>Q</th><th>Detail</th></tr></thead><tbody id="events"></tbody></table>
+      <p class="empty" id="noev">Nothing recorded yet.</p>
     </section>
   </div>
+
+  <section class="earlier" aria-label="Earlier candidates">
+    <h2>Earlier candidates</h2>
+    <table id="histTable" hidden><thead><tr><th>Finished</th><th>Candidate</th><th>ID</th><th>Score</th><th>Flags</th><th>How it ended</th></tr></thead><tbody id="hist"></tbody></table>
+    <p class="empty" id="noHist">No finished exams yet. Results are saved in the results folder.</p>
+  </section>
 </div>
+
+<dialog id="viewer" aria-labelledby="viewCap">
+  <img id="viewImg" alt="Picture taken when the flag was raised">
+  <p class="cap" id="viewCap"></p>
+  <p class="note">Taken by the camera at the moment the flag was raised. A flag is a prompt for a person to look, not proof of anything.</p>
+  <form method="dialog"><button class="secondary" autofocus>Close</button></form>
+</dialog>
+
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const key = new URLSearchParams(location.search).get("key") || "";
-const trail = [];
-function chip(text, cls) { const s = document.createElement("span"); s.className = "chip " + (cls || ""); s.textContent = text; return s; }
-function fmt(s) { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
+const store = {
+  get(k, area) { try { return (area || sessionStorage).getItem(k) || ""; } catch (e) { return ""; } },
+  set(k, v, area) { try { (area || sessionStorage).setItem(k, v); } catch (e) {} },
+  del(k, area) { try { (area || sessionStorage).removeItem(k); } catch (e) {} },
+};
+const LABELS = {
+  GAZE_OFF_SCREEN: "Looked away from the screen", REPEATED_GLANCES: "Repeated glances away",
+  NO_FACE: "Face not visible", MULTIPLE_FACES: "More than one face", EYES_COVERED: "Eyes covered",
+  LEFT_EYE_HIDDEN: "Left eye hidden", RIGHT_EYE_HIDDEN: "Right eye hidden", EYES_CLOSED: "Eyes closed",
+  IDENTITY_MISMATCH: "Face does not match registration",
+  LOOKING_UP: "Head turned up", LOOKING_DOWN: "Head turned down", LOOKING_LEFT: "Looking left", LOOKING_RIGHT: "Looking right",
+  EYES_EXTREME_LEFT: "Eyes at far left", EYES_EXTREME_RIGHT: "Eyes at far right",
+  HEAD_TURNED_ONE_EYE: "Head turned, one eye visible", EYES_UP: "Eyes looking up", EYES_DOWN: "Eyes looking down",
+  MOUTH_OPEN: "Mouth open",
+  LEFT_EXAM_WINDOW: "Left the exam window", RETURNED_TO_EXAM: "Returned to the exam", FULLSCREEN_EXITED: "Left full screen",
+  COPY_ATTEMPT: "Tried to copy", PASTE_ATTEMPT: "Tried to paste", RIGHT_CLICK: "Right-clicked", PAGE_RELOADED: "Reloaded the page",
+  CAMERA_MONITOR_STOPPED: "Camera monitor stopped", GAZE_TRACKING_SKIPPED: "Gaze tracking skipped",
+};
+const MINOR = new Set(["RETURNED_TO_EXAM", "RIGHT_CLICK", "PAGE_RELOADED"]);   // worth recording, not worth an alarm
+const label = n => LABELS[n] || n.toLowerCase().replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
+const fmt = s => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
 
-function drawMap(g) {
-  const c = $("map"), ctx = c.getContext("2d"), W = c.width, H = c.height;
-  const css = getComputedStyle(document.body);
-  ctx.clearRect(0, 0, W, H);
-  // map covers -0.35 .. 1.35 of the screen in both directions, so looking away shows up outside the box
-  const lo = -0.35, span = 1.7, sx = x => (x - lo) / span * W, sy = y => (y - lo) / span * H;
-  ctx.fillStyle = css.getPropertyValue("--screen"); ctx.fillRect(sx(0), sy(0), sx(1) - sx(0), sy(1) - sy(0));
-  ctx.strokeStyle = css.getPropertyValue("--muted"); ctx.lineWidth = 2; ctx.strokeRect(sx(0), sy(0), sx(1) - sx(0), sy(1) - sy(0));
-  ctx.fillStyle = css.getPropertyValue("--muted"); ctx.font = "14px system-ui"; ctx.fillText("candidate's screen", sx(0) + 8, sy(0) + 20);
-  if (g) trail.push([g.x, g.y, g.off]); else if (trail.length) trail.push(null);
-  while (trail.length > 40) trail.shift();
-  for (let i = 1; i < trail.length; i++) {
-    const a = trail[i - 1], b = trail[i];
-    if (!a || !b) continue;
-    ctx.strokeStyle = "rgba(31,95,209," + (0.15 + 0.6 * i / trail.length) + ")"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(sx(a[0]), sy(a[1])); ctx.lineTo(sx(b[0]), sy(b[1])); ctx.stroke();
+let token = store.get("inv_token"), loop = null, last = null, filter = "all";
+let logSig = "", bandPicName = "", bandPicEvent = null;
+let seenCount = 0, seenSession = -1, wasFinished = false, trail = [], failures = 0, audio = null;
+let soundOn = store.get("inv_sound", localStorage) === "1";
+
+// ------------------------------------------------------------------ flag pictures
+const pics = new Map();                       // file name -> promise of an object URL
+function getPic(name) {
+  if (!pics.has(name)) {
+    pics.set(name, api("/api/admin/snapshot?name=" + encodeURIComponent(name))
+      .then(r => r.ok ? r.blob() : Promise.reject(new Error("no picture")))
+      .then(b => URL.createObjectURL(b))
+      .catch(e => { pics.delete(name); throw e; }));      // a failed picture can be asked for again
   }
-  if (g) {
-    const px = Math.max(8, Math.min(W - 8, sx(g.x))), py = Math.max(8, Math.min(H - 8, sy(g.y)));
-    ctx.fillStyle = g.off ? css.getPropertyValue("--bad") : css.getPropertyValue("--ok");
-    ctx.beginPath(); ctx.arc(px, py, 11, 0, 7); ctx.fill();
-  }
+  return pics.get(name);
+}
+function forgetPics() { pics.forEach(p => p.then(u => URL.revokeObjectURL(u)).catch(() => {})); pics.clear(); }
+function fillPic(img, name) { getPic(name).then(u => { img.src = u; }).catch(() => { img.alt = "Picture not available"; }); }
+function openPic(e) {
+  getPic(e.snapshot).then(u => {
+    $("viewImg").src = u;
+    $("viewCap").textContent = label(e.name) + ", " + fmt(e.time_s) + (e.question ? ", question " + e.question : "");
+    $("viewer").showModal();
+  }).catch(() => {});
+}
+$("viewer").addEventListener("click", ev => { if (ev.target === $("viewer")) $("viewer").close(); });
+
+// ------------------------------------------------------------------ views
+function show(view) { $("signin").hidden = view !== "signin"; $("console").hidden = view !== "console"; }
+function signinMessage(text) { $("signinMsg").textContent = text || ""; }
+
+async function post(path, body) {
+  const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  let data = {}; try { data = await r.json(); } catch (e) {}
+  return {status: r.status, data};
+}
+
+async function signIn(key) {
+  $("signinBtn").disabled = true; signinMessage("");
+  try {
+    const r = await post("/api/admin/login", {key});
+    if (r.status === 200) {
+      token = r.data.token; store.set("inv_token", token); $("title").textContent = r.data.title || "Exam";
+      history.replaceState(null, "", location.pathname);       // the key never stays in the address bar
+      start(); return true;
+    }
+    signinMessage(r.status === 403 ? "That key is not right. Check the key in the terminal window." : (r.data.error || "Could not sign in."));
+  } catch (e) { signinMessage("Cannot reach the exam server. Check that the exam program is still running."); }
+  finally { $("signinBtn").disabled = false; }
+  show("signin"); history.replaceState(null, "", location.pathname);
+  $("key").focus();
+  return false;
+}
+
+function signOut(message) {
+  forgetPics();
+  if (token) { post("/api/admin/logout", {token}).catch(() => {}); }
+  token = ""; store.del("inv_token"); clearTimeout(loop); loop = null; last = null;
+  show("signin"); signinMessage(message || ""); $("key").value = ""; $("key").focus();
+}
+
+function start() {
+  show("console"); seenCount = 0; seenSession = -1; trail = []; wasFinished = false;
+  clearTimeout(loop); tick(); loadHistory();
+}
+
+// ------------------------------------------------------------------ polling
+async function api(path) {
+  const r = await fetch(path, {cache: "no-store", headers: {"X-Admin-Token": token}});
+  if (r.status === 403) throw new Error("signed-out");
+  return r;
 }
 
 async function tick() {
-  let d;
   try {
-    const r = await fetch("/api/admin/live?key=" + encodeURIComponent(key), {cache: "no-store"});
-    if (r.status === 403) { $("state").textContent = "wrong or missing key"; return; }
-    d = await r.json();
-  } catch (e) { $("state").textContent = "server not reachable"; return; }
-  const chips = $("chips"); chips.textContent = "";
-  chips.appendChild(chip("Camera: " + d.camera, d.camera === "running" ? "ok" : d.camera === "error" ? "bad" : "warn"));
-  if (d.faces !== null && d.faces !== undefined) chips.appendChild(chip("Faces: " + d.faces, d.faces === 1 ? "ok" : "bad"));
-  if (d.light !== null && d.light !== undefined) chips.appendChild(chip("Light: " + d.light, d.light >= 60 ? "ok" : "warn"));
-  if (d.cal && d.cal.state === "done") chips.appendChild(chip("Gaze calibrated, about " + Math.round(d.cal.accuracy_px) + " px", d.cal.good ? "ok" : "warn"));
-  else chips.appendChild(chip("Gaze: " + (d.cal ? d.cal.state : "idle"), d.cal && d.cal.state === "skipped" ? "warn" : ""));
-  (d.active || []).forEach(n => chips.appendChild(chip("FLAG " + n, "bad")));
-
-  drawMap(d.gaze);
-  $("msg").textContent = !d.gaze ? "No gaze point right now (eyes shut, head turned far, not calibrated, or no exam running)."
-    : d.gaze.off ? "Looking OFF the screen." : d.gaze.paused ? "Gaze checks are paused (the exam window is not full screen)." : "Looking at the screen.";
-
-  const s = d.session, info = $("info"); info.textContent = "";
-  const add = (k, v) => { const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = v; info.append(dt, dd); };
-  if (!s) { $("state").textContent = "waiting for a candidate"; add("Status", "No exam started yet"); }
-  else {
-    $("state").textContent = s.finished ? "finished" : s.begun ? "exam in progress" : "calibrating";
-    add("Name", s.candidate); add("ID", s.candidate_id);
-    add("Status", s.finished ? ("Finished: " + s.reason) : s.begun ? "In progress" : "Setting up (gaze calibration)");
-    if (s.begun) { add("Question", s.question ? s.question + " of " + s.total : "-"); add("Answered", s.answered + " of " + s.total); if (!s.finished) add("Time left", fmt(s.remaining)); }
-    if (s.finished && s.score !== null) add("Score", s.score + " / " + s.total);
-    if (s.calibration && s.calibration.skipped) add("Gaze", "SKIPPED by candidate: " + (s.calibration.reason || ""));
+    const r = await api("/api/admin/live");
+    last = await r.json(); failures = 0; render(last);
+  } catch (e) {
+    if (e.message === "signed-out") return signOut("The key has changed because the exam program was restarted. Enter the new key.");
+    failures++; if (failures >= 3) setLive(false);
   }
-  const body = $("events"); body.textContent = "";
-  const ev = s ? s.events.slice().reverse() : [];
-  $("noev").style.display = ev.length ? "none" : "";
-  ev.slice(0, 40).forEach(e => {
+  loop = setTimeout(tick, 300);
+}
+
+async function loadHistory() {
+  try {
+    const rows = await (await api("/api/admin/history")).json();
+    const body = $("hist"); body.textContent = "";
+    rows.forEach(x => {
+      const tr = document.createElement("tr");
+      [x.finished, x.candidate, x.candidate_id, x.score + " / " + x.out_of, x.flag_count, x.finish_reason].forEach(t => {
+        const td = document.createElement("td"); td.textContent = t; tr.appendChild(td); });
+      body.appendChild(tr);
+    });
+    $("histTable").hidden = !rows.length; $("noHist").hidden = rows.length > 0;
+  } catch (e) { /* the list is a convenience */ }
+}
+
+function setLive(ok) {
+  $("liveDot").className = "dot " + (ok ? "ok" : "bad");
+  $("liveText").textContent = ok ? "Live" : "Connection lost, retrying";
+}
+
+// ------------------------------------------------------------------ drawing the page
+function row(list, name, value, state) {
+  const wrap = document.createElement("div"), dt = document.createElement("dt"), dd = document.createElement("dd");
+  dt.textContent = name;
+  if (state) { const d = document.createElement("span"); d.className = "dot " + state; dd.appendChild(d); }
+  dd.appendChild(document.createTextNode(value));
+  wrap.append(dt, dd); list.appendChild(wrap);
+}
+
+function render(d) {
+  setLive(true);
+  $("title").textContent = d.title || "Exam";
+  const s = d.session, flagged = (d.active || []).length > 0 && s && s.begun && !s.finished;
+  document.title = (flagged ? "(!) Flag - " : "") + "Invigilator console";
+  if (d.session_number !== seenSession) { seenSession = d.session_number; seenCount = 0; trail = []; logSig = ""; forgetPics(); loadHistory(); }
+  if (s && s.finished && !wasFinished) loadHistory();
+  wasFinished = !!(s && s.finished);
+  renderBand(d); renderCandidate(d); renderMonitor(d); renderLog(d); drawMap(d);
+}
+
+function renderBand(d) {
+  const s = d.session, band = $("band"), main = $("bandMain"), sub = $("bandSub");
+  let cls = "wait", m = "", t = "";
+  const events = s ? s.events.filter(e => !MINOR.has(e.name) && e.source !== "system") : [];
+  const latest = events.length ? events[events.length - 1] : null;
+  if (!s) { m = "Waiting for a candidate"; t = "Candidates register at " + location.origin + "/"; }
+  else if (s.finished) {
+    cls = "done"; m = "Finished: " + (s.reason || "submitted");
+    t = s.candidate + (s.score !== null ? " scored " + s.score + " of " + s.total : "") + ". " + (s.events.length ? s.event_count + " events recorded." : "No flags raised.");
+  } else if (!s.begun) { cls = "info"; m = s.candidate + " is setting up"; t = "Camera check and gaze calibration are in progress. The clock has not started."; }
+  else if (d.camera === "error") { cls = "alert"; m = "Camera monitor stopped"; t = d.camera_message || "The webcam is no longer sending pictures."; }
+  else if ((d.active || []).length) {
+    cls = "alert"; m = d.active.map(label).join(", ");
+    t = s.candidate + (s.question ? " is on question " + s.question : "") + ". The candidate has been shown a warning.";
+  } else if (d.camera === "off") { cls = "info"; m = "Exam in progress"; t = "Camera monitoring is switched off, so only window and keyboard events are recorded."; }
+  else {
+    cls = "ok"; m = "All clear";
+    t = s.candidate + " is on question " + (s.question || "-") + " of " + s.total + "." + (latest ? " Last flag: " + label(latest.name).toLowerCase() + " at " + fmt(latest.time_s) + "." : "");
+  }
+  band.className = "band " + cls; main.textContent = m; sub.textContent = t;
+  const withPic = s ? s.events.filter(e => e.snapshot) : [];
+  bandPicEvent = cls === "alert" && withPic.length ? withPic[withPic.length - 1] : null;
+  $("bandPic").hidden = !bandPicEvent;
+  if (bandPicEvent && bandPicEvent.snapshot !== bandPicName) { bandPicName = bandPicEvent.snapshot; $("bandImg").removeAttribute("src"); fillPic($("bandImg"), bandPicName); }
+  if (!bandPicEvent) bandPicName = "";
+}
+
+function renderCandidate(d) {
+  const s = d.session, list = $("cand"); list.textContent = "";
+  const tl = $("timeleft"), meter = $("meter"), dl = $("download");
+  tl.hidden = meter.hidden = dl.hidden = true;
+  if (!s) { row(list, "Status", "No candidate yet"); return; }
+  row(list, "Name", s.candidate); row(list, "ID", s.candidate_id);
+  row(list, "Status", s.finished ? "Finished" : s.begun ? "In progress" : "Setting up");
+  if (s.begun) {
+    row(list, "Question", s.question ? s.question + " of " + s.total : "-");
+    row(list, "Answered", s.answered + " of " + s.total);
+    meter.hidden = false; meter.setAttribute("aria-valuemax", s.total); meter.setAttribute("aria-valuenow", s.answered);
+    meter.firstElementChild.style.width = (s.total ? 100 * s.answered / s.total : 0) + "%";
+  }
+  if (s.begun && !s.finished) {
+    tl.hidden = false; tl.className = "timeleft num" + (s.remaining < 60 ? " low" : "");
+    tl.textContent = fmt(s.remaining); const sm = document.createElement("small"); sm.textContent = "time left"; tl.appendChild(sm);
+  }
+  if (s.finished) { if (s.score !== null) row(list, "Score", s.score + " / " + s.total); dl.hidden = false; }
+}
+
+function renderMonitor(d) {
+  const list = $("mon"); list.textContent = "";
+  const cam = d.camera;
+  row(list, "Camera", cam === "running" ? "On" : cam === "off" ? "Switched off" : cam === "error" ? "Stopped" : "Starting",
+      cam === "running" ? "ok" : cam === "error" ? "bad" : cam === "off" ? "" : "warn");
+  if (d.faces !== null && d.faces !== undefined) row(list, "Faces in view", String(d.faces), d.faces === 1 ? "ok" : "bad");
+  if (d.light !== null && d.light !== undefined) row(list, "Light", d.light >= 60 ? "Good" : "Too dark", d.light >= 60 ? "ok" : "warn");
+  const c = d.cal || {state: "idle"}, s = d.session;
+  if (c.state === "done") row(list, "Gaze calibration", "About " + Math.round(c.accuracy_px) + " px off", c.good ? "ok" : "warn");
+  else if (s && s.calibration && s.calibration.skipped) row(list, "Gaze calibration", "Skipped by candidate", "warn");
+  else row(list, "Gaze calibration", ({idle: "Not started", running: "In progress", failed: "Failed", cancelled: "Cancelled", skipped: "Skipped"})[c.state] || c.state, c.state === "running" ? "warn" : "");
+  if (d.gaze) row(list, "Looking", d.gaze.paused ? "Paused (not full screen)" : d.gaze.off ? "Away from the screen" : "At the screen", d.gaze.paused ? "warn" : d.gaze.off ? "bad" : "ok");
+}
+
+function renderLog(d) {
+  const s = d.session, body = $("events"), tally = $("tally");
+  const sig = d.session_number + "|" + filter + "|" + (s ? s.event_count : 0);
+  if (sig === logSig) return;
+  logSig = sig;
+  body.textContent = ""; tally.textContent = "";
+  const all = s ? s.events : [];
+  const counts = {};
+  all.filter(e => !MINOR.has(e.name) && e.source !== "system").forEach(e => counts[e.name] = (counts[e.name] || 0) + 1);
+  Object.keys(counts).sort((a, b) => counts[b] - counts[a]).forEach(n => {
+    const li = document.createElement("li"); li.textContent = label(n) + " x" + counts[n]; tally.appendChild(li); });
+  const total = s ? s.event_count : 0;
+  const fresh = Math.max(0, total - seenCount);
+  const shown = all.map((e, i) => ({e, fresh: i >= all.length - fresh})).reverse().filter(x => filter === "all" || x.e.source === filter);
+  $("noev").hidden = shown.length > 0;
+  $("noev").textContent = all.length ? "Nothing of this kind yet." : "Nothing recorded yet.";
+  shown.slice(0, 60).forEach(({e, fresh: isNew}) => {
     const tr = document.createElement("tr");
-    [fmt(e.time_s), e.name, e.question || "-", (e.detail || "") + (e.seconds ? " (" + e.seconds + " s)" : "")].forEach((t, i) => {
-      const td = document.createElement("td"); td.textContent = t; if (i === 1) td.className = "src-" + e.source; tr.appendChild(td); });
+    if (MINOR.has(e.name)) tr.className = "minor";
+    if (isNew && seenCount) tr.className += " fresh";
+    const cells = [fmt(e.time_s), label(e.name), e.question || "-", (e.detail || "") + (e.seconds ? " (" + e.seconds + " s)" : "")];
+    cells.forEach((t, i) => { const td = document.createElement("td"); td.textContent = t; if (i === 1) { td.className = "flag " + e.source; td.title = e.name; } tr.appendChild(td); });
+    if (e.snapshot) {
+      const b = document.createElement("button"), img = document.createElement("img");
+      b.type = "button"; b.className = "thumb"; b.setAttribute("aria-label", "Open picture: " + label(e.name) + " at " + fmt(e.time_s));
+      img.alt = ""; b.appendChild(img); b.addEventListener("click", () => openPic(e)); fillPic(img, e.snapshot);
+      tr.lastChild.appendChild(b);
+    }
     body.appendChild(tr);
   });
+  if (total > seenCount && seenCount > 0 && soundOn) {
+    const added = all.slice(-(total - seenCount));
+    if (added.some(e => !MINOR.has(e.name) && e.source !== "system")) beep();
+  }
+  seenCount = total;
 }
-tick(); setInterval(tick, 300);
+
+// ------------------------------------------------------------------ gaze map
+function drawMap(d) {
+  const c = $("map"), dpr = window.devicePixelRatio || 1, W = c.clientWidth, H = Math.round(W * 0.6);
+  if (!W) return;
+  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  c.style.height = H + "px";
+  const ctx = c.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  const css = getComputedStyle(document.documentElement), col = n => css.getPropertyValue(n).trim();
+  const g = d.gaze, cal = d.cal && d.cal.screen, a = cal ? cal[0] / cal[1] : 16 / 9, pad = 0.3;
+  const rw = Math.min(W / (1 + 2 * pad), H * a / (1 + 2 * pad)), rh = rw / a, x0 = (W - rw) / 2, y0 = (H - rh) / 2;
+  const sx = x => x0 + x * rw, sy = y => y0 + y * rh;
+  ctx.fillStyle = col("--screen"); ctx.fillRect(x0, y0, rw, rh);
+  ctx.strokeStyle = col("--muted"); ctx.lineWidth = 2; ctx.strokeRect(x0, y0, rw, rh);
+  const m = d.off_margin || 0.1;
+  ctx.setLineDash([6, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = col("--bad");
+  ctx.strokeRect(sx(-m), sy(-m), rw * (1 + 2 * m), rh * (1 + 2 * m)); ctx.setLineDash([]);
+  ctx.fillStyle = col("--muted"); ctx.font = "13px system-ui"; ctx.fillText("Candidate's screen", x0 + 10, y0 + 20);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const P = p => [clamp(sx(p[0]), 10, W - 10), clamp(sy(p[1]), 10, H - 10)];
+  if (g && !g.paused) trail.push([g.x, g.y]); else if (trail.length && trail[trail.length - 1]) trail.push(null);
+  while (trail.length > 40) trail.shift();
+  for (let i = 1; i < trail.length; i++) {
+    if (!trail[i - 1] || !trail[i]) continue;
+    const p = P(trail[i - 1]), q = P(trail[i]);
+    ctx.strokeStyle = "rgba(14,111,122," + (0.12 + 0.6 * i / trail.length) + ")"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
+  }
+  if (g) {
+    const p = P([g.x, g.y]);
+    ctx.fillStyle = g.paused ? col("--muted") : g.off ? col("--bad") : col("--ok");
+    ctx.beginPath(); ctx.arc(p[0], p[1], 10, 0, 7); ctx.fill();
+  }
+  $("mapMsg").textContent = !g ? "No gaze point right now: no exam running, eyes not visible, or gaze not calibrated."
+    : g.paused ? "Gaze checks are paused because the exam window is not full screen."
+    : g.off ? "Looking away from the screen." : "Looking at the screen.";
+}
+
+// ------------------------------------------------------------------ small things
+function beep() {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(audio.destination);
+    o.start(); o.stop(audio.currentTime + 0.25);
+  } catch (e) { /* no sound available */ }
+}
+
+$("sound").addEventListener("click", () => {
+  soundOn = !soundOn; store.set("inv_sound", soundOn ? "1" : "", localStorage);
+  $("sound").setAttribute("aria-pressed", soundOn); $("sound").textContent = "Sound alerts: " + (soundOn ? "on" : "off");
+  if (soundOn) beep();                       // the click also lets the browser play sound later
+});
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  filter = b.dataset.f; document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  if (last) renderLog(last);
+}));
+$("download").addEventListener("click", async () => {
+  try {
+    const r = await api("/api/admin/result"); if (!r.ok) return;
+    const blob = await r.blob(), a = document.createElement("a"), id = (last && last.session ? last.session.candidate_id : "result");
+    a.href = URL.createObjectURL(blob); a.download = "result_" + id.replace(/[^A-Za-z0-9_-]/g, "_") + ".json";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  } catch (e) { /* signed out: the next poll shows the sign-in page */ }
+});
+$("bandPic").addEventListener("click", () => { if (bandPicEvent) openPic(bandPicEvent); });
+$("signout").addEventListener("click", () => signOut(""));
+$("signinForm").addEventListener("submit", e => { e.preventDefault(); if ($("key").value.trim()) signIn($("key").value); });
+window.addEventListener("resize", () => { if (last) drawMap(last); });
+
+// ------------------------------------------------------------------ first thing on load
+(function init() {
+  $("sound").setAttribute("aria-pressed", soundOn); $("sound").textContent = "Sound alerts: " + (soundOn ? "on" : "off");
+  const fromLink = new URLSearchParams(location.hash.replace(/^#/, "")).get("key") || new URLSearchParams(location.search).get("key");
+  if (fromLink) { show("signin"); signinMessage(""); signIn(fromLink); }
+  else if (token) start();
+  else { show("signin"); $("key").focus(); }
+})();
 </script>
 </body>
 </html>

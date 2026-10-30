@@ -1,16 +1,14 @@
 {
- "created": "2026-10-21T09:29:17",
+ "created": "2026-10-28T09:29:48",
  "screen": [
   1280,
   720
  ],
- "face_light_mean": 92.8,
- "cross_check_px": 250.57288966402928,
- "accuracy_check_px": 120.0128118852688,
+ "face_light_mean": 90.0,
+ "cross_check_px": 226.39386340474402,
+ "accuracy_check_px": 176.60775664165672,
  "dots_redone": [],
- "dots_unsteady_at_end": [
-  4
- ],
+ "dots_unsteady_at_end": [],
  "settings": {
   "GAZE_RIDGE": 0.005,
   "GAZE_CAL_EDGE": 0.08,
@@ -31,10 +29,10 @@
     640,
     360
    ],
-   "frames": 11,
-   "scatter_px": 57,
-   "fit_error_px": 258,
-   "cross_error_px": 323
+   "frames": 36,
+   "scatter_px": 151,
+   "fit_error_px": 76,
+   "cross_error_px": 109
   },
   {
    "dot": "2",
@@ -43,10 +41,10 @@
     102,
     58
    ],
-   "frames": 12,
-   "scatter_px": 146,
-   "fit_error_px": 474,
-   "cross_error_px": 546
+   "frames": 35,
+   "scatter_px": 134,
+   "fit_error_px": 302,
+   "cross_error_px": 397
   },
   {
    "dot": "3",
@@ -55,10 +53,10 @@
     1178,
     58
    ],
-   "frames": 21,
-   "scatter_px": 225,
-   "fit_error_px": 365,
-   "cross_error_px": 796
+   "frames": 36,
+   "scatter_px": 126,
+   "fit_error_px": 260,
+   "cross_error_px": 366
   },
   {
    "dot": "4",
@@ -67,10 +65,10 @@
     1178,
     662
    ],
-   "frames": 36,
-   "scatter_px": 193,
-   "fit_error_px": 296,
-   "cross_error_px": 657
+   "frames": 35,
+   "scatter_px": 228,
+   "fit_error_px": 279,
+   "cross_error_px": 347
   },
   {
    "dot": "5",
@@ -80,9 +78,9 @@
     662
    ],
    "frames": 36,
-   "scatter_px": 271,
-   "fit_error_px": 356,
-   "cross_error_px": 645
+   "scatter_px": 109,
+   "fit_error_px": 117,
+   "cross_error_px": 386
   },
   {
    "dot": "6",
@@ -92,9 +90,9 @@
     58
    ],
    "frames": 36,
-   "scatter_px": 113,
-   "fit_error_px": 307,
-   "cross_error_px": 500
+   "scatter_px": 112,
+   "fit_error_px": 213,
+   "cross_error_px": 252
   },
   {
    "dot": "7",
@@ -103,10 +101,10 @@
     1178,
     360
    ],
-   "frames": 28,
-   "scatter_px": 151,
-   "fit_error_px": 60,
-   "cross_error_px": 107
+   "frames": 34,
+   "scatter_px": 201,
+   "fit_error_px": 211,
+   "cross_error_px": 235
   },
   {
    "dot": "8",
@@ -115,10 +113,10 @@
     640,
     662
    ],
-   "frames": 12,
-   "scatter_px": 82,
-   "fit_error_px": 127,
-   "cross_error_px": 141
+   "frames": 36,
+   "scatter_px": 129,
+   "fit_error_px": 326,
+   "cross_error_px": 386
   },
   {
    "dot": "9",
@@ -128,9 +126,9 @@
     360
    ],
    "frames": 35,
-   "scatter_px": 115,
-   "fit_error_px": 30,
-   "cross_error_px": 552
+   "scatter_px": 129,
+   "fit_error_px": 182,
+   "cross_error_px": 216
   },
   {
    "dot": "check 1",
@@ -139,10 +137,10 @@
     384,
     216
    ],
-   "frames": 36,
-   "scatter_px": 68,
-   "fit_error_px": 127,
-   "cross_error_px": 178
+   "frames": 35,
+   "scatter_px": 116,
+   "fit_error_px": 129,
+   "cross_error_px": 153
   },
   {
    "dot": "check 2",
@@ -152,9 +150,9 @@
     216
    ],
    "frames": 36,
-   "scatter_px": 81,
-   "fit_error_px": 73,
-   "cross_error_px": 102
+   "scatter_px": 123,
+   "fit_error_px": 111,
+   "cross_error_px": 129
   },
   {
    "dot": "check 3",
@@ -164,9 +162,9 @@
     504
    ],
    "frames": 36,
-   "scatter_px": 103,
-   "fit_error_px": 43,
-   "cross_error_px": 61
+   "scatter_px": 120,
+   "fit_error_px": 160,
+   "cross_error_px": 186
   },
   {
    "dot": "check 4",
@@ -176,9 +174,9 @@
     504
    ],
    "frames": 36,
-   "scatter_px": 79,
-   "fit_error_px": 74,
-   "cross_error_px": 119
+   "scatter_px": 162,
+   "fit_error_px": 119,
+   "cross_error_px": 136
   },
   {
    "dot": "check 5",
@@ -187,10 +185,10 @@
     640,
     562
    ],
-   "frames": 33,
-   "scatter_px": 75,
-   "fit_error_px": 46,
-   "cross_error_px": 60
+   "frames": 35,
+   "scatter_px": 104,
+   "fit_error_px": 188,
+   "cross_error_px": 218
   }
  ]
 }

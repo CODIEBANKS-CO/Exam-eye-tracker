@@ -7,7 +7,11 @@ Run:      python exam_app.py                 opens http://127.0.0.1:8765 in your
           python exam_app.py --no-camera     exam only, no webcam (fallback / for writing questions)
           python exam_app.py --show-gaze     also draw the candidate's gaze point on their page (demo)
           python exam_app.py --no-gaze       skip the gaze calibration / look-away alert
+          python exam_app.py --no-invigilator-window   do not open the invigilator console by itself
           python exam_app.py --questions my_questions.json --minutes 30 --port 9000
+
+The invigilator console opens in a second browser window, already signed in: the program makes a
+new key every time it starts (for example K7QM-4XD2) and puts it in that window's link.
 
 Questions are in questions.json. Results go to results/ (one JSON file per candidate plus
 summary.csv). Camera flags also go to events.csv with a snapshot, tagged with the question number.
@@ -29,6 +33,8 @@ def parse_args(argv=None):
     p.add_argument("--minutes", type=float, help="time allowed (default: EXAM_MINUTES in facelib/config.py)")
     p.add_argument("--port", type=int, help="port (default: EXAM_PORT)")
     p.add_argument("--no-browser", action="store_true", help="do not open the browser by myself")
+    p.add_argument("--no-invigilator-window", action="store_true",
+                   help="do not open the invigilator console by myself (the link is still printed)")
     p.add_argument("--no-gaze", action="store_true", help="skip the gaze calibration and the look-away alert")
     p.add_argument("--show-gaze", action="store_true", help="draw the candidate's gaze point on their page (demo)")
     args, _ = p.parse_known_args(argv)
@@ -69,11 +75,16 @@ def main(argv=None):
         return 1
     monitor.start()
     url = f"http://{cfg.EXAM_HOST}:{port}"
-    print(f"Exam ready: {len(app.questions)} questions, {cfg.EXAM_MINUTES:g} minutes.  Open {url}")
-    print(f"Invigilator view (keep this address private): {url}/admin?key={app.admin_key}")
+    invigilator = f"{url}/admin#key={app.auth.key}"       # the key rides in the link: nothing to type
+    print(f"Exam ready: {len(app.questions)} questions, {cfg.EXAM_MINUTES:g} minutes.")
+    print(f"  Candidates open:   {url}")
+    print(f"  Invigilator key:   {app.auth.key}")
+    print(f"  Invigilator link:  {invigilator}   (keep private)")
     print("Press Ctrl+C here to stop the server.")
     if not args.no_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+        if not args.no_invigilator_window:
+            threading.Timer(2.0, lambda: webbrowser.open_new(invigilator)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

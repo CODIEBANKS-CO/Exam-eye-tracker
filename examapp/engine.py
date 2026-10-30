@@ -163,12 +163,15 @@ class ExamSession:
         (self.marked.add if on else self.marked.discard)(qid)
         return True
 
-    def add_event(self, source, name, detail="", seconds=None):
-        """Remember a flag (source 'camera') or browser event (source 'browser') with its context."""
+    def add_event(self, source, name, detail="", seconds=None, snapshot=None):
+        """Remember a flag (source 'camera') or browser event (source 'browser') with its context.
+        `snapshot` is the file name (not the path) of the picture taken when a camera flag fired."""
         event = {"time_s": round(self.clock() - self.started, 1), "question": self.current_number,
                  "source": source, "name": name, "detail": detail}
         if seconds is not None:
             event["seconds"] = round(float(seconds), 1)
+        if snapshot:
+            event["snapshot"] = snapshot
         self.events.append(event)
         return event
 

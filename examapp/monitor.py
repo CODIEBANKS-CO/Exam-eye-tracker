@@ -11,6 +11,7 @@ Calibration: the exam page shows the calibration screen. This thread runs the sa
 the page as JPEG frames instead, and the page passes key presses back.
 """
 
+import os
 import threading
 from collections import deque
 
@@ -80,7 +81,7 @@ class CameraMonitor(threading.Thread):
         self._lock = threading.Lock()
         self._stop_flag = threading.Event()
         self._reset = threading.Event()
-        self._on_flag = None       # callable(name, seconds, detail) while an exam runs
+        self._on_flag = None       # callable(name, seconds, detail, snapshot=) while an exam runs
         self._context = lambda: ""
         self._status = {"state": "starting", "message": "Starting the camera...", "faces": None,
                         "light": None, "active": [], "gaze": None}
@@ -264,8 +265,8 @@ class CameraMonitor(threading.Thread):
                         continue
                     for name, seconds, detail in fired:
                         tag = context()
-                        log_event(name, seconds, raw, (f"{tag}: {detail}" if detail else tag) if tag else detail)
-                        on_flag(name, seconds, detail)
+                        snap = log_event(name, seconds, raw, (f"{tag}: {detail}" if detail else tag) if tag else detail)
+                        on_flag(name, seconds, detail, snapshot=os.path.basename(snap) if snap else None)
             cap.release()
         except Exception as exc:   # the exam must keep running even if the camera fails
             self._set(state="error", message=f"Camera monitor stopped: {exc}", active=[], gaze=None)

@@ -12,7 +12,7 @@ LOG_HEADER = ["timestamp", "event", "seconds_at_flag", "snapshot", "detail"]
 
 
 def log_event(name, seconds, frame, detail=""):
-    """Append a row to the CSV log and save a snapshot of the raw frame."""
+    """Append a row to the CSV log and save a snapshot of the raw frame. Returns the snapshot's path."""
     os.makedirs(cfg.SNAPSHOT_DIR, exist_ok=True)
     stamp = datetime.now()
     snap = os.path.join(cfg.SNAPSHOT_DIR, f"{stamp:%Y%m%d_%H%M%S}_{name}.jpg")
@@ -31,6 +31,7 @@ def log_event(name, seconds, frame, detail=""):
             writer.writerow(LOG_HEADER)
         writer.writerow([stamp.isoformat(timespec="seconds"), name, f"{seconds:.1f}", snap, detail])
     print(f"[FLAG] {stamp:%H:%M:%S} {name} ({seconds:.1f}s)" + (f" - {detail}" if detail else ""))
+    return snap
 
 
 def log_note(name, detail=""):
