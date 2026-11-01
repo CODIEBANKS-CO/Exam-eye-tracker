@@ -119,14 +119,58 @@
   dialog { border:0; border-radius:12px; padding:0; max-width:min(92vw,880px); background:var(--surface); color:var(--ink); }
   dialog::backdrop { background:rgba(8,14,24,.72); }
   dialog img { display:block; width:100%; height:auto; background:#000; }
+  dialog figure { margin:0; flex:1 1 0; min-width:0; } dialog figcaption { padding:6px 16px 0; color:var(--muted); font-size:.85rem; }
+  dialog .pair { display:flex; flex-wrap:wrap; gap:0; } dialog .pair figure { flex-basis:300px; flex-grow:1; }
+  dialog .pair figure[hidden] { display:none; }
+  #refRow { margin:-10px 0 18px; } #refRow[hidden] { display:none; } #refRow .thumb { display:inline-block; margin:0; vertical-align:middle; }
+  #refRow span { margin-left:10px; color:var(--muted); font-size:.9rem; }
   dialog .cap { margin:0; padding:12px 16px 4px; font-weight:600; }
   dialog .note { margin:0; padding:0 16px 12px; color:var(--muted); font-size:.9rem; }
   dialog form { padding:0 16px 14px; }
   .empty { color:var(--muted); margin:8px 0; }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 
   @media (max-width:720px) { .bandpic img { width:92px; } }
   .earlier { padding:18px 20px 32px; border-top:1px solid var(--line); }
   .earlier table { max-width:60rem; }
+
+  /* ----- the room: every candidate at once ----- */
+  #room { padding:16px 20px 32px; }
+  .roombar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; margin-bottom:10px; }
+  .counts { font:600 1.1rem var(--display); margin-right:auto; }
+  .counts span { font:400 .95rem system-ui,sans-serif; color:var(--muted); margin-left:10px; }
+  .counts span.bad { color:var(--bad); font-weight:600; }
+  .segr { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .segr button { background:transparent; color:var(--ink); border:0; padding:5px 12px; border-right:1px solid var(--line); }
+  .segr button:last-child { border-right:0; }
+  .segr button[aria-pressed="true"] { background:var(--accent); color:var(--accent-ink); font-weight:600; }
+  .joinline { margin:0 0 14px; color:var(--muted); font-size:.92rem; }
+  .joinline b { font:600 1rem var(--mono); letter-spacing:.1em; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:1px 8px; background:var(--surface); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:12px; }
+  .tile { text-align:left; padding:0; border:2px solid var(--line); border-radius:10px; background:var(--surface); color:inherit;
+          overflow:hidden; display:flex; flex-direction:column; min-width:0; }
+  .tile.s3 { border-color:var(--bad); } .tile.s2 { border-color:var(--warn); } .tile.s0 { opacity:.85; }
+  .tile:hover { border-color:var(--accent); }
+  .shot { position:relative; aspect-ratio:4/3; background:#101826; display:flex; align-items:center; justify-content:center; }
+  .shot img { width:100%; height:100%; object-fit:cover; display:block; }
+  .shot img[hidden] { display:none; }
+  .shot .ph { color:#9aa8bd; font-size:.85rem; padding:8px; text-align:center; }
+  .shot .badge { position:absolute; left:6px; top:6px; background:var(--bad); color:#fff; border-radius:6px; padding:1px 8px; font-weight:600; font-size:.8rem; }
+  .tile .body { padding:8px 10px 10px; min-width:0; }
+  .nm { display:block; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sub { display:block; color:var(--muted); font-size:.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .line { font-size:.9rem; margin-top:2px; }
+  .chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; min-height:1px; }
+  .chip { background:var(--alert-bg); color:var(--bad); border-radius:999px; padding:0 8px; font-size:.78rem; font-weight:600; }
+  .chip.soft { background:transparent; border:1px solid var(--line); color:var(--muted); font-weight:400; }
+  #roomList { margin-top:4px; } #roomList tbody tr { cursor:pointer; }
+  #roomList tbody tr:hover, #roomList tbody tr:focus-visible { background:var(--screen); }
+  #roomList tr.s3 td:first-child { box-shadow:inset 4px 0 0 var(--bad); } #roomList tr.s2 td:first-child { box-shadow:inset 4px 0 0 var(--warn); }
+  #roomList img { display:block; width:64px; height:48px; object-fit:cover; border-radius:4px; background:#101826; }
+  #roomList td.bad { color:var(--bad); font-weight:600; }
+  #liveBox { margin:0 0 16px; } #liveBox img { width:100%; max-width:320px; border-radius:8px; background:#101826; display:block; }
+  #liveBox figcaption { color:var(--muted); font-size:.82rem; margin-top:3px; }
+  #removeComp { margin-top:10px; }
 </style>
 </head>
 <body>
@@ -148,10 +192,24 @@
   <header class="bar">
     <h1><span id="title">Exam</span><small>Invigilator console</small></h1>
     <span class="live" id="live"><span class="dot" id="liveDot"></span><span id="liveText">Connecting</span></span>
+    <button class="ghost" id="backRoom" type="button" hidden>&larr; All candidates</button>
     <button class="ghost" id="sound" type="button" aria-pressed="false">Sound alerts: off</button>
     <button class="ghost" id="signout" type="button">Sign out</button>
   </header>
 
+  <section id="room" hidden aria-label="All candidates">
+    <div class="roombar">
+      <p class="counts" id="roomCounts" aria-live="polite">Waiting for candidates</p>
+      <div class="segr" role="group" aria-label="Show"><button type="button" data-n="0" aria-pressed="true">Everyone</button><button type="button" data-n="1" aria-pressed="false">Needs a look</button></div>
+      <div class="segr" role="group" aria-label="Layout"><button type="button" data-v="grid" aria-pressed="true">Grid</button><button type="button" data-v="list" aria-pressed="false">List</button></div>
+    </div>
+    <p class="joinline">Room code <b id="joinCode">----</b> &nbsp;Each candidate's computer joins with this code (the exact command is in the terminal window of this program). Click a candidate to see everything about them.</p>
+    <div class="grid" id="grid"></div>
+    <table id="roomList" hidden><thead><tr><th><span class="sr">Picture</span></th><th>Candidate</th><th>Status</th><th>Question</th><th>Time left</th><th>Faces</th><th>Face match</th><th>Flags now</th><th>Flags</th></tr></thead><tbody id="roomRows"></tbody></table>
+    <p class="empty" id="roomEmpty">No candidate computers have joined yet.</p>
+  </section>
+
+  <div id="single">
   <section class="band" id="band" role="status" aria-live="polite">
     <div class="band-text">
       <p class="band-main" id="bandMain">Connecting</p>
@@ -162,13 +220,16 @@
 
   <div class="layout">
     <section aria-label="Candidate and monitor">
+      <figure id="liveBox" hidden><img id="livePic" alt="Live camera picture of the candidate"><figcaption>Camera picture, refreshed every few seconds</figcaption></figure>
       <h2>Candidate</h2>
       <dl class="rows" id="cand"></dl>
       <div class="timeleft num" id="timeleft" hidden></div>
       <div class="meter" id="meter" hidden role="progressbar" aria-label="Questions answered" aria-valuemin="0"><span></span></div>
       <button class="secondary" id="download" type="button" hidden>Download result (JSON)</button>
+      <button class="secondary" id="removeComp" type="button" hidden>Remove this computer from the room</button>
       <h2 style="margin-top:22px">Monitor</h2>
       <dl class="rows" id="mon"></dl>
+      <div id="refRow" hidden><button class="thumb" id="refPic" type="button" aria-label="Open the picture of the candidate taken at the start"><img id="refImg" alt=""></button><span>Face at the start</span></div>
     </section>
 
     <section aria-label="Where the candidate is looking">
@@ -198,10 +259,14 @@
     <table id="histTable" hidden><thead><tr><th>Finished</th><th>Candidate</th><th>ID</th><th>Score</th><th>Flags</th><th>How it ended</th></tr></thead><tbody id="hist"></tbody></table>
     <p class="empty" id="noHist">No finished exams yet. Results are saved in the results folder.</p>
   </section>
+  </div>
 </div>
 
 <dialog id="viewer" aria-labelledby="viewCap">
-  <img id="viewImg" alt="Picture taken when the flag was raised">
+  <div class="pair">
+    <figure><img id="viewImg" alt="Picture taken when the flag was raised"><figcaption id="viewA">When the flag was raised</figcaption></figure>
+    <figure id="viewRefBox" hidden><img id="viewRef" alt="Picture of the candidate taken at the start"><figcaption>At the start of the exam</figcaption></figure>
+  </div>
   <p class="cap" id="viewCap"></p>
   <p class="note">Taken by the camera at the moment the flag was raised. A flag is a prompt for a person to look, not proof of anything.</p>
   <form method="dialog"><button class="secondary" autofocus>Close</button></form>
@@ -219,7 +284,8 @@ const LABELS = {
   GAZE_OFF_SCREEN: "Looked away from the screen", REPEATED_GLANCES: "Repeated glances away",
   NO_FACE: "Face not visible", MULTIPLE_FACES: "More than one face", EYES_COVERED: "Eyes covered",
   LEFT_EYE_HIDDEN: "Left eye hidden", RIGHT_EYE_HIDDEN: "Right eye hidden", EYES_CLOSED: "Eyes closed",
-  IDENTITY_MISMATCH: "Face does not match registration",
+  IDENTITY_MISMATCH: "Face differs from the one at the start", IDENTITY_UNVERIFIED: "Could not confirm who is at the screen",
+  FACE_ENROLLED: "Face reference taken", FACE_MATCH_SKIPPED: "Face matching skipped",
   LOOKING_UP: "Head turned up", LOOKING_DOWN: "Head turned down", LOOKING_LEFT: "Looking left", LOOKING_RIGHT: "Looking right",
   EYES_EXTREME_LEFT: "Eyes at far left", EYES_EXTREME_RIGHT: "Eyes at far right",
   HEAD_TURNED_ONE_EYE: "Head turned, one eye visible", EYES_UP: "Eyes looking up", EYES_DOWN: "Eyes looking down",
@@ -228,20 +294,25 @@ const LABELS = {
   COPY_ATTEMPT: "Tried to copy", PASTE_ATTEMPT: "Tried to paste", RIGHT_CLICK: "Right-clicked", PAGE_RELOADED: "Reloaded the page",
   CAMERA_MONITOR_STOPPED: "Camera monitor stopped", GAZE_TRACKING_SKIPPED: "Gaze tracking skipped",
 };
-const MINOR = new Set(["RETURNED_TO_EXAM", "RIGHT_CLICK", "PAGE_RELOADED"]);   // worth recording, not worth an alarm
+const MINOR = new Set(["RETURNED_TO_EXAM", "RIGHT_CLICK", "PAGE_RELOADED", "FACE_ENROLLED"]);   // worth recording, not worth an alarm
 const label = n => LABELS[n] || n.toLowerCase().replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
 const fmt = s => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
 
 let token = store.get("inv_token"), loop = null, last = null, filter = "all";
-let logSig = "", bandPicName = "", bandPicEvent = null;
+let hub = store.get("inv_hub") === "1", cid = "";             // hub: this program is the room's invigilator computer; cid: the computer being looked at
+let logSig = "", bandPicName = "", bandPicEvent = null, refName = "";
 let seenCount = 0, seenSession = -1, wasFinished = false, trail = [], failures = 0, audio = null;
 let soundOn = store.get("inv_sound", localStorage) === "1";
 
 // ------------------------------------------------------------------ flag pictures
 const pics = new Map();                       // file name -> promise of an object URL
+function picUrl(name) {
+  return cid ? "/api/admin/room/picture?id=" + encodeURIComponent(cid) + "&name=" + encodeURIComponent(name)
+             : "/api/admin/snapshot?name=" + encodeURIComponent(name);
+}
 function getPic(name) {
   if (!pics.has(name)) {
-    pics.set(name, api("/api/admin/snapshot?name=" + encodeURIComponent(name))
+    pics.set(name, api(picUrl(name))
       .then(r => r.ok ? r.blob() : Promise.reject(new Error("no picture")))
       .then(b => URL.createObjectURL(b))
       .catch(e => { pics.delete(name); throw e; }));      // a failed picture can be asked for again
@@ -251,8 +322,10 @@ function getPic(name) {
 function forgetPics() { pics.forEach(p => p.then(u => URL.revokeObjectURL(u)).catch(() => {})); pics.clear(); }
 function fillPic(img, name) { getPic(name).then(u => { img.src = u; }).catch(() => { img.alt = "Picture not available"; }); }
 function openPic(e) {
-  getPic(e.snapshot).then(u => {
-    $("viewImg").src = u;
+  const withRef = /^IDENTITY_/.test(e.name) && refName && refName !== e.snapshot;
+  Promise.all([getPic(e.snapshot), withRef ? getPic(refName) : Promise.resolve("")]).then(([u, ref]) => {
+    $("viewImg").src = u; $("viewRefBox").hidden = !withRef; if (withRef) $("viewRef").src = ref;
+    $("viewA").textContent = withRef ? "When the flag was raised" : "Taken by the camera";
     $("viewCap").textContent = label(e.name) + ", " + fmt(e.time_s) + (e.question ? ", question " + e.question : "");
     $("viewer").showModal();
   }).catch(() => {});
@@ -275,6 +348,7 @@ async function signIn(key) {
     const r = await post("/api/admin/login", {key});
     if (r.status === 200) {
       token = r.data.token; store.set("inv_token", token); $("title").textContent = r.data.title || "Exam";
+      hub = !!r.data.hub; store.set("inv_hub", hub ? "1" : "");
       history.replaceState(null, "", location.pathname);       // the key never stays in the address bar
       start(); return true;
     }
@@ -289,13 +363,16 @@ async function signIn(key) {
 function signOut(message) {
   forgetPics();
   if (token) { post("/api/admin/logout", {token}).catch(() => {}); }
-  token = ""; store.del("inv_token"); clearTimeout(loop); loop = null; last = null;
+  token = ""; store.del("inv_token"); store.del("inv_hub"); clearTimeout(loop); loop = null; last = null;
+  hub = false; cid = ""; clearRoom(); liveClear();
   show("signin"); signinMessage(message || ""); $("key").value = ""; $("key").focus();
 }
 
 function start() {
   show("console"); seenCount = 0; seenSession = -1; trail = []; wasFinished = false;
-  clearTimeout(loop); tick(); loadHistory();
+  clearTimeout(loop); cid = "";
+  if (hub) { showRoomView(true); roomTick(); }
+  else { showRoomView(false); tick(); loadHistory(); }
 }
 
 // ------------------------------------------------------------------ polling
@@ -306,14 +383,17 @@ async function api(path) {
 }
 
 async function tick() {
+  const mine = cid;
   try {
-    const r = await api("/api/admin/live");
+    const r = await api(cid ? "/api/admin/room/client?id=" + encodeURIComponent(cid) : "/api/admin/live");
+    if (mine !== cid) return;                                   // the invigilator moved to another view meanwhile
+    if (cid && r.status === 404) return backToRoom();           // that computer was removed
     last = await r.json(); failures = 0; render(last);
   } catch (e) {
     if (e.message === "signed-out") return signOut("The key has changed because the exam program was restarted. Enter the new key.");
     failures++; if (failures >= 3) setLive(false);
   }
-  loop = setTimeout(tick, 300);
+  if (mine === cid) loop = setTimeout(tick, cid ? 500 : 300);
 }
 
 async function loadHistory() {
@@ -349,10 +429,11 @@ function render(d) {
   $("title").textContent = d.title || "Exam";
   const s = d.session, flagged = (d.active || []).length > 0 && s && s.begun && !s.finished;
   document.title = (flagged ? "(!) Flag - " : "") + "Invigilator console";
-  if (d.session_number !== seenSession) { seenSession = d.session_number; seenCount = 0; trail = []; logSig = ""; forgetPics(); loadHistory(); }
-  if (s && s.finished && !wasFinished) loadHistory();
+  if (d.session_number !== seenSession) { seenSession = d.session_number; seenCount = 0; trail = []; logSig = ""; forgetPics(); if (!cid) loadHistory(); }
+  if (s && s.finished && !wasFinished && !cid) loadHistory();
   wasFinished = !!(s && s.finished);
   renderBand(d); renderCandidate(d); renderMonitor(d); renderLog(d); drawMap(d);
+  if (cid) renderComputer(d);
 }
 
 function renderBand(d) {
@@ -360,14 +441,19 @@ function renderBand(d) {
   let cls = "wait", m = "", t = "";
   const events = s ? s.events.filter(e => !MINOR.has(e.name) && e.source !== "system") : [];
   const latest = events.length ? events[events.length - 1] : null;
-  if (!s) { m = "Waiting for a candidate"; t = "Candidates register at " + location.origin + "/"; }
+  const lostConn = d.connection && !d.connection.connected && !(s && s.finished);
+  if (lostConn) {
+    cls = "alert"; m = "Connection lost";
+    t = "No report from " + d.connection.label + " for " + Math.round(d.connection.lost_for || d.connection.age) + " s. The exam may still be running on that computer.";
+  }
+  else if (!s) { m = "Waiting for a candidate"; t = "Candidates register at " + location.origin + "/"; }
   else if (s.finished) {
     cls = "done"; m = "Finished: " + (s.reason || "submitted");
     t = s.candidate + (s.score !== null ? " scored " + s.score + " of " + s.total : "") + ". " + (s.events.length ? s.event_count + " events recorded." : "No flags raised.");
   } else if (!s.begun) { cls = "info"; m = s.candidate + " is setting up"; t = "Camera check and gaze calibration are in progress. The clock has not started."; }
   else if (d.camera === "error") { cls = "alert"; m = "Camera monitor stopped"; t = d.camera_message || "The webcam is no longer sending pictures."; }
   else if ((d.active || []).length) {
-    cls = "alert"; m = d.active.map(label).join(", ");
+    cls = "alert"; m = d.active.slice().sort((a, b) => (b.startsWith("IDENTITY") ? 1 : 0) - (a.startsWith("IDENTITY") ? 1 : 0)).map(label).join(", ");
     t = s.candidate + (s.question ? " is on question " + s.question : "") + ". The candidate has been shown a warning.";
   } else if (d.camera === "off") { cls = "info"; m = "Exam in progress"; t = "Camera monitoring is switched off, so only window and keyboard events are recorded."; }
   else {
@@ -375,7 +461,7 @@ function renderBand(d) {
     t = s.candidate + " is on question " + (s.question || "-") + " of " + s.total + "." + (latest ? " Last flag: " + label(latest.name).toLowerCase() + " at " + fmt(latest.time_s) + "." : "");
   }
   band.className = "band " + cls; main.textContent = m; sub.textContent = t;
-  const withPic = s ? s.events.filter(e => e.snapshot) : [];
+  const withPic = s ? s.events.filter(e => e.snapshot && e.source === "camera") : [];
   bandPicEvent = cls === "alert" && withPic.length ? withPic[withPic.length - 1] : null;
   $("bandPic").hidden = !bandPicEvent;
   if (bandPicEvent && bandPicEvent.snapshot !== bandPicName) { bandPicName = bandPicEvent.snapshot; $("bandImg").removeAttribute("src"); fillPic($("bandImg"), bandPicName); }
@@ -388,6 +474,7 @@ function renderCandidate(d) {
   tl.hidden = meter.hidden = dl.hidden = true;
   if (!s) { row(list, "Status", "No candidate yet"); return; }
   row(list, "Name", s.candidate); row(list, "ID", s.candidate_id);
+  if (d.connection) row(list, "Computer", d.connection.label + (d.connection.ip ? " (" + d.connection.ip + ")" : ""));
   row(list, "Status", s.finished ? "Finished" : s.begun ? "In progress" : "Setting up");
   if (s.begun) {
     row(list, "Question", s.question ? s.question + " of " + s.total : "-");
@@ -413,6 +500,21 @@ function renderMonitor(d) {
   if (c.state === "done") row(list, "Gaze calibration", "About " + Math.round(c.accuracy_px) + " px off", c.good ? "ok" : "warn");
   else if (s && s.calibration && s.calibration.skipped) row(list, "Gaze calibration", "Skipped by candidate", "warn");
   else row(list, "Gaze calibration", ({idle: "Not started", running: "In progress", failed: "Failed", cancelled: "Cancelled", skipped: "Skipped"})[c.state] || c.state, c.state === "running" ? "warn" : "");
+  const fm = s && s.face_match, id = d.identity;
+  if (fm && fm.skipped) row(list, "Face match", "Skipped by candidate", "warn");
+  else if (id) {
+    const sc = id.score === null || id.score === undefined ? "" : " (score " + id.score.toFixed(2) + ")";
+    if (id.status === "mismatch") row(list, "Face match", "Different from the start" + sc, "bad");
+    else if (id.status === "unverified") row(list, "Face match", "Not confirmed for " + id.since_verified + " s", "warn");
+    else if (id.status === "ok") row(list, "Face match", "Same person" + sc, "ok");
+    else row(list, "Face match", "Waiting for the first check", "warn");
+  } else if (d.face && d.face.state === "running") row(list, "Face match", "Taking the reference pictures", "warn");
+  else if (d.face && (d.face.state === "failed" || d.face.state === "unavailable")) row(list, "Face match", "Face check did not pass", "warn");
+  const ref = fm && fm.reference_snapshot ? fm.reference_snapshot : "";
+  if (ref !== refName) {
+    refName = ref; $("refRow").hidden = !ref; $("refImg").removeAttribute("src");
+    if (ref) fillPic($("refImg"), ref);
+  }
   if (d.gaze) row(list, "Looking", d.gaze.paused ? "Paused (not full screen)" : d.gaze.off ? "Away from the screen" : "At the screen", d.gaze.paused ? "warn" : d.gaze.off ? "bad" : "ok");
 }
 
@@ -517,10 +619,213 @@ $("download").addEventListener("click", async () => {
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   } catch (e) { /* signed out: the next poll shows the sign-in page */ }
 });
+$("refPic").addEventListener("click", () => { if (refName) openPic({name: "FACE_ENROLLED", snapshot: refName, time_s: 0, question: null}); });
 $("bandPic").addEventListener("click", () => { if (bandPicEvent) openPic(bandPicEvent); });
 $("signout").addEventListener("click", () => signOut(""));
 $("signinForm").addEventListener("submit", e => { e.preventDefault(); if ($("key").value.trim()) signIn($("key").value); });
 window.addEventListener("resize", () => { if (last) drawMap(last); });
+
+// ------------------------------------------------------------------ the room: every candidate at once
+// Only used when this program is the invigilator's hub. One tile (or one table row) per candidate computer; clicking
+// one shows the same detailed console as before, fed from that computer's reports.
+const STATE_TEXT = {connecting: "Connecting", waiting: "Waiting for a candidate", setting_up: "Setting up (clock not started)",
+                    in_exam: "In the exam", finished: "Finished", lost: "Connection lost"};
+let roomLoop = null, roomOnly = false, roomLayout = store.get("inv_layout", localStorage) === "list" ? "list" : "grid";
+let roomData = null, roomAlarm = new Set(), roomFirst = true, liveFrame = -1, liveBusy = false, liveUrl = "";
+const tiles = new Map();                        // computer id -> {el, img, ph, badge, nm, sub, line, chips, frame, url, busy}
+
+function showRoomView(on) {
+  $("room").hidden = !on; $("single").hidden = on;
+  $("backRoom").hidden = !(hub && !on);
+  document.querySelector(".earlier").hidden = !!cid;
+  if (on) document.title = "Invigilator console - all candidates";
+}
+function clearRoom() {
+  clearTimeout(roomLoop); roomLoop = null; roomData = null; roomFirst = true; roomAlarm = new Set();
+  tiles.forEach(t => { if (t.url) URL.revokeObjectURL(t.url); }); tiles.clear();
+  $("grid").textContent = ""; $("roomRows").textContent = "";
+}
+function liveClear() {
+  liveFrame = -1; liveBusy = false; $("liveBox").hidden = true; $("livePic").removeAttribute("src");
+  if (liveUrl) { URL.revokeObjectURL(liveUrl); liveUrl = ""; }
+}
+
+async function roomTick() {
+  if (cid || !hub) return;
+  try {
+    const r = await api("/api/admin/room");
+    if (cid) return;
+    roomData = await r.json(); failures = 0; setLive(true); renderRoom(roomData);
+  } catch (e) {
+    if (e.message === "signed-out") return signOut("The key has changed because the exam program was restarted. Enter the new key.");
+    failures++; if (failures >= 3) setLive(false);
+  }
+  if (!cid) roomLoop = setTimeout(roomTick, 1000);
+}
+
+function stateText(t) {
+  if (t.state === "in_exam" && t.question) return "Question " + t.question + " of " + t.total + " · " + fmt(t.remaining || 0) + " left";
+  if (t.state === "finished") return "Finished" + (t.score !== null ? ": " + t.score + " of " + t.total : "");
+  return STATE_TEXT[t.state] || t.state;
+}
+function badgeText(t) {
+  if (t.state === "lost") return "Lost";
+  if (t.camera === "error") return "Camera";
+  return t.active.length ? "Flag" : "";
+}
+function faceText(i) {
+  return !i ? "-" : i === "ok" ? "Same person" : i === "mismatch" ? "Different" : i === "unverified" ? "Not confirmed" : "Waiting";
+}
+function sortedFlags(a) { return a.slice().sort((x, y) => (y.startsWith("IDENTITY") ? 1 : 0) - (x.startsWith("IDENTITY") ? 1 : 0)); }
+
+function makeTile(t) {
+  const el = document.createElement("button"); el.type = "button"; el.className = "tile";
+  const shot = document.createElement("span"); shot.className = "shot";
+  const img = document.createElement("img"); img.alt = ""; img.hidden = true;
+  const ph = document.createElement("span"); ph.className = "ph";
+  const badge = document.createElement("span"); badge.className = "badge"; badge.hidden = true;
+  shot.append(img, ph, badge);
+  const body = document.createElement("span"); body.className = "body";
+  const nm = document.createElement("span"); nm.className = "nm"; const sub = document.createElement("span"); sub.className = "sub";
+  const line = document.createElement("span"); line.className = "line"; const chips = document.createElement("span"); chips.className = "chips";
+  body.append(nm, sub, line, chips); el.append(shot, body);
+  el.addEventListener("click", () => openComputer(t.id));
+  return {el, img, ph, badge, nm, sub, line, chips, frame: 0, url: "", busy: false};
+}
+
+async function loadTileFrame(t, tile) {
+  if (tile.busy) return; tile.busy = true;
+  const want = t.frame;
+  try {
+    const r = await api("/api/admin/room/frame?id=" + encodeURIComponent(t.id));
+    if (r.ok) {
+      const u = URL.createObjectURL(await r.blob());
+      if (tile.url) URL.revokeObjectURL(tile.url);
+      tile.url = u; tile.frame = want; tile.img.src = u; tile.img.hidden = false; tile.ph.hidden = true;
+      if (roomLayout === "list" && roomData) renderRoomList(visibleTiles(roomData));
+    }
+  } catch (e) { /* the next report asks again */ }
+  tile.busy = false;
+}
+
+function visibleTiles(d) {
+  const list = d.clients.filter(t => !roomOnly || t.severity >= 2);
+  return list.sort((a, b) => b.severity - a.severity || (a.name || a.label).localeCompare(b.name || b.label));
+}
+
+function renderRoom(d) {
+  $("joinCode").textContent = d.code;
+  const c = d.counts, bits = [];
+  $("roomCounts").textContent = c.all + (c.all === 1 ? " computer" : " computers");
+  const add = (text, bad) => { const sp = document.createElement("span"); sp.textContent = text; if (bad) sp.className = "bad"; $("roomCounts").appendChild(sp); };
+  add(c.in_exam + " in the exam");
+  const need = d.clients.filter(t => t.severity >= 2).length;
+  if (need) add(need + " need" + (need === 1 ? "s" : "") + " a look", true);
+  if (c.lost) add(c.lost + " lost connection", true);
+  // sound and tab title for a computer that has just started needing a look
+  const alarm = new Set(d.clients.filter(t => t.severity >= 3).map(t => t.id));
+  if (!roomFirst && soundOn && [...alarm].some(id => !roomAlarm.has(id))) beep();
+  roomAlarm = alarm; roomFirst = false;
+  document.title = (alarm.size ? "(!) " + alarm.size + " flagged - " : "") + "Invigilator console - all candidates";
+
+  const list = visibleTiles(d), keep = new Set(list.map(t => t.id));
+  tiles.forEach((tile, id) => { if (!d.clients.some(t => t.id === id)) { if (tile.url) URL.revokeObjectURL(tile.url); tile.el.remove(); tiles.delete(id); } });
+  $("roomEmpty").hidden = d.clients.length > 0;
+  $("roomEmpty").textContent = "No candidate computers have joined yet.";
+  const grid = $("grid");
+  list.forEach((t, i) => {
+    let tile = tiles.get(t.id);
+    if (!tile) { tile = makeTile(t); tiles.set(t.id, tile); }
+    tile.el.className = "tile s" + t.severity;
+    tile.nm.textContent = t.name || t.label; tile.sub.textContent = t.name ? t.label + (t.candidate_id ? " · " + t.candidate_id : "") : "";
+    tile.line.textContent = stateText(t);
+    tile.el.setAttribute("aria-label", (t.name || t.label) + ", " + stateText(t) + (t.active.length ? ", flag: " + sortedFlags(t.active).map(label).join(", ") : ""));
+    const bt = badgeText(t); tile.badge.hidden = !bt; tile.badge.textContent = bt;
+    tile.chips.textContent = "";
+    sortedFlags(t.active).forEach(a => { const ch = document.createElement("span"); ch.className = "chip"; ch.textContent = label(a); tile.chips.appendChild(ch); });
+    if (t.state === "lost") { const ch = document.createElement("span"); ch.className = "chip"; ch.textContent = "Connection lost"; tile.chips.appendChild(ch); }
+    else if (t.flag_count && !t.active.length) { const ch = document.createElement("span"); ch.className = "chip soft"; ch.textContent = t.flag_count + (t.flag_count === 1 ? " flag so far" : " flags so far"); tile.chips.appendChild(ch); }
+    if (!t.frame) { tile.img.hidden = true; tile.ph.hidden = false; tile.ph.textContent = t.state === "in_exam" ? "Waiting for the first picture" : stateText(t); if (tile.url) { URL.revokeObjectURL(tile.url); tile.url = ""; tile.frame = 0; } }
+    else if (t.frame !== tile.frame) loadTileFrame(t, tile);
+    if (grid.children[i] !== tile.el) grid.insertBefore(tile.el, grid.children[i] || null);
+  });
+  tiles.forEach((tile, id) => { if (!keep.has(id)) tile.el.remove(); });
+  $("grid").hidden = roomLayout !== "grid"; $("roomList").hidden = roomLayout !== "list" || !list.length;
+  if (roomLayout === "list") renderRoomList(list);
+  if (d.clients.length && !list.length) { $("roomEmpty").hidden = false; $("roomEmpty").textContent = "Nobody needs a look right now."; }
+}
+
+function renderRoomList(list) {
+  const body = $("roomRows"); body.textContent = "";
+  list.forEach(t => {
+    const tr = document.createElement("tr"); tr.className = "s" + t.severity; tr.tabIndex = 0;
+    const cell = (text, cls) => { const td = document.createElement("td"); td.textContent = text; if (cls) td.className = cls; tr.appendChild(td); return td; };
+    const pic = document.createElement("td"), tile = tiles.get(t.id);
+    if (tile && tile.url) { const im = document.createElement("img"); im.alt = ""; im.src = tile.url; pic.appendChild(im); }
+    tr.appendChild(pic);
+    const who = cell(t.name || t.label); who.title = t.label;
+    const st = cell(stateText(t), t.state === "lost" ? "bad" : ""); st.title = t.label;
+    cell(t.question ? t.question + " of " + t.total : "-");
+    cell(t.remaining !== null && t.state === "in_exam" ? fmt(t.remaining) : "-");
+    cell(t.faces === null ? "-" : String(t.faces), t.faces !== null && t.state === "in_exam" && t.faces !== 1 ? "bad" : "");
+    cell(faceText(t.identity), t.identity === "mismatch" || t.identity === "unverified" ? "bad" : "");
+    cell(sortedFlags(t.active).map(label).join(", ") || "-", t.active.length ? "bad" : "");
+    cell(String(t.flag_count));
+    tr.addEventListener("click", () => openComputer(t.id));
+    tr.addEventListener("keydown", e => { if (e.key === "Enter") openComputer(t.id); });
+    body.appendChild(tr);
+  });
+}
+
+function openComputer(id) {
+  clearTimeout(roomLoop); roomLoop = null; clearTimeout(loop);
+  cid = id; last = null; forgetPics(); logSig = ""; refName = ""; bandPicName = ""; bandPicEvent = null;
+  seenCount = 0; seenSession = -1; trail = []; wasFinished = false; liveClear();
+  showRoomView(false); window.scrollTo(0, 0); tick();
+}
+function backToRoom() {
+  clearTimeout(loop); loop = null; cid = ""; last = null; forgetPics(); liveClear(); logSig = ""; refName = "";
+  showRoomView(true); roomFirst = true; roomTick();
+}
+
+// What only exists when one computer is being looked at through the hub.
+function renderComputer(d) {
+  const c = d.connection;
+  document.title = (flaggedNow(d) ? "(!) " : "") + (d.session ? d.session.candidate + " - " : "") + "Invigilator console";
+  $("download").hidden = true;                                   // the result is on the candidate's computer, and in the hub's log lines
+  $("removeComp").hidden = !(c && (!c.connected || !d.session || d.session.finished));
+  const inExam = d.session && d.session.begun && !d.session.finished;
+  $("liveBox").hidden = !(inExam && d.frame > 0);
+  if (inExam && d.frame > 0 && d.frame !== liveFrame && !liveBusy) {
+    liveBusy = true; const want = d.frame, mine = cid;
+    api("/api/admin/room/frame?id=" + encodeURIComponent(cid)).then(r => r.ok ? r.blob() : null).then(b => {
+      if (b && mine === cid) { const u = URL.createObjectURL(b); if (liveUrl) URL.revokeObjectURL(liveUrl); liveUrl = u; $("livePic").src = u; liveFrame = want; }
+    }).catch(() => {}).finally(() => { liveBusy = false; });
+  }
+}
+const flaggedNow = d => (d.active || []).length > 0 && d.session && d.session.begun && !d.session.finished;
+
+$("backRoom").addEventListener("click", backToRoom);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && hub && cid && !$("viewer").open) backToRoom(); });
+$("removeComp").addEventListener("click", async () => {
+  if (!cid || !confirm("Remove this computer from the room? It will join again by itself if it is still reporting.")) return;
+  try {
+    const r = await fetch("/api/admin/room/forget", {method: "POST", headers: {"Content-Type": "application/json", "X-Admin-Token": token}, body: JSON.stringify({id: cid})});
+    if (r.ok || r.status === 404) backToRoom();
+  } catch (e) { /* try again */ }
+});
+document.querySelectorAll(".segr button[data-n]").forEach(b => b.addEventListener("click", () => {
+  roomOnly = b.dataset.n === "1"; document.querySelectorAll(".segr button[data-n]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  if (roomData) renderRoom(roomData);
+}));
+document.querySelectorAll(".segr button[data-v]").forEach(b => {
+  b.setAttribute("aria-pressed", b.dataset.v === roomLayout);
+  b.addEventListener("click", () => {
+    roomLayout = b.dataset.v; store.set("inv_layout", roomLayout, localStorage);
+    document.querySelectorAll(".segr button[data-v]").forEach(x => x.setAttribute("aria-pressed", x === b));
+    if (roomData) renderRoom(roomData);
+  });
+});
 
 // ------------------------------------------------------------------ first thing on load
 (function init() {

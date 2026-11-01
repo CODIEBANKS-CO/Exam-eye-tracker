@@ -125,9 +125,9 @@ LOW_LIGHT_WARN = 40        # show an "add light" message below this
 # GLANCE_COUNT of them within GLANCE_WINDOW_SECONDS. The preview shows the running count.
 GLANCE_CHECK = True
 GLANCE_MIN_SECONDS = 0.5     # a look-away shorter than this is ignored (noise, a blink of movement)
-GLANCE_GAP_SECONDS = 0.45     # back to the screen for less than this = still the same look-away
+GLANCE_GAP_SECONDS = 0.4     # back to the screen for less than this = still the same look-away
 GLANCE_COUNT = 4             # this many look-aways ...
-GLANCE_WINDOW_SECONDS = 15.0 # ... inside this many seconds raise the flag
+GLANCE_WINDOW_SECONDS = 60.0 # ... inside this many seconds raise the flag
 GLANCE_FLAG_SECONDS = 5.0    # the red banner stays up this long; counting then starts again from zero
 
 # ----------------------- expressions (optional) --------------------------
@@ -159,6 +159,28 @@ ID_CHECK_SECONDS = 2.0     # compare the face this often (the comparison is the 
 ID_MISMATCH_SECONDS = 6.0  # keep failing this long before IDENTITY_MISMATCH is flagged
 ID_MAX_WIDTH = 960         # the picture is shrunk to this width before face detection
 ID_MIN_FACE_SCORE = 0.8    # ignore weak face detections
+
+# --- face match inside the exam (examapp): the reference is made live at the start ---
+# The candidate's face is turned into a few signatures when the exam starts (kept in memory only), then
+# compared with the live face every second until the exam ends. ID_MATCH_THRESHOLD above is the pass mark.
+EXAM_FACE_MATCH = True             # switch the whole face-match feature on (needs the YuNet and SFace models)
+EXAM_FACE_REQUIRED = False         # True: no "continue without face matching" button if the face check fails
+EXAM_FACE_SAVE_REFERENCE = True    # save one picture of the face taken at the start, so a reviewer can compare
+EXAM_FACE_SAMPLES = 6              # pictures used to make the reference (taken about half a second apart)
+EXAM_FACE_ENROL_SECONDS = 25.0     # give up on the face check after this long
+EXAM_FACE_SAMPLE_GAP = 0.5         # seconds between reference pictures
+EXAM_FACE_CHECK_SECONDS = 1.0      # compare the live face this often during the exam
+EXAM_FACE_MISMATCH_SECONDS = 3.0   # keep failing this long before IDENTITY_MISMATCH is flagged
+ID_ENROL_CONSISTENCY = 0.45        # the reference pictures must look this alike (lowest pair), else the check is repeated
+ID_ENROL_MIN_FACE_FRACTION = 0.12  # the face must be at least this fraction of the picture width (else: move closer)
+ID_UNVERIFIED_SECONDS = 45.0       # flag IDENTITY_UNVERIFIED when no clear front-facing view matched for this long
+
+# --- the room: many candidate computers reporting to one invigilator computer (examapp/hub.py) ---
+ROOM_PREVIEW_MIN_SECONDS = 1.0     # the camera program makes a small preview picture at most this often (when the room asks)
+ROOM_PREVIEW_WIDTH = 320           # pixels wide: small on purpose, so a whole room fits on the network
+ROOM_PREVIEW_QUALITY = 60          # JPEG quality of the preview
+ROOM_REPORT_SECONDS = 1.0          # a candidate computer reports its state this often
+ROOM_LOST_SECONDS = 8.0            # no report for this long and the invigilator sees "connection lost"
 
 # ------------------------------ files / paths ----------------------------
 MODEL_DIR = os.path.join(BASE_DIR, "models")

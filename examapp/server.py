@@ -25,6 +25,7 @@ from facelib.events import log_note
 
 from .auth import AdminAuth
 from .engine import ExamSession, QuestionError, load_questions  # noqa: F401
+from .hub import MAX_FRAME, MAX_PICTURE, Room  # noqa: F401
 from .monitor import warning_text
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -33,12 +34,13 @@ BROWSER_EVENTS = {   # what the page may report -> is it a flag worth keeping in
     "COPY_ATTEMPT": True, "PASTE_ATTEMPT": True, "RIGHT_CLICK": False, "PAGE_RELOADED": False,
 }
 MAX_BODY = 20_000
+MAX_REPORT = 120_000     # a candidate computer's status report (its flags and events) is bigger than a page's request
 
 
 class ExamApp:
     """Everything the handler needs; separate from HTTP so tests can drive it directly."""
 
-    def __init__(self, monitor, questions_path=None, clock=None):
+    def __init__(self, monitor, questions_path=None, clock=None, room=None):
         self.title, self.questions = load_questions(questions_path or cfg.EXAM_QUESTIONS_FILE)
         self.monitor = monitor
         self.clock = clock
@@ -48,6 +50,8 @@ class ExamApp:
         self._camera_loss_logged = False
         self.auth = AdminAuth(cfg.EXAM_ADMIN_KEY)     # the invigilator key is made here, once per run
         self.session_number = 0                       # counts candidates registered since the server started
+        self.room = room                              # a Room when this computer is the invigilator's hub
+        self.room_link = False                        # True when this computer reports to a hub
 
     # ------------------------------ helpers -------------------------------
     def _new_session(self, name, candidate_id):
@@ -58,12 +62,18 @@ class ExamApp:
         """Gaze calibration is used when switched on and the camera is really running."""
         return bool(cfg.EXAM_GAZE) and self.monitor.status["state"] == "running"
 
+    def face_wanted(self):
+        """The face check is part of the exam when it is switched on and the camera is really running."""
+        check = getattr(self.monitor, "face_available", None)
+        return bool(check and check())
+
     def info(self):
         status = self.monitor.status
         return {"title": self.title, "questions": len(self.questions), "minutes": cfg.EXAM_MINUTES,
                 "camera": status, "in_progress": self.session is not None and self.session.finished is None,
-                "show_score": cfg.EXAM_SHOW_SCORE, "gaze": self.gaze_wanted(),
-                "show_gaze": bool(cfg.EXAM_SHOW_GAZE_DOT)}
+                "show_score": cfg.EXAM_SHOW_SCORE, "gaze": self.gaze_wanted(), "face": self.face_wanted(),
+                "face_required": bool(cfg.EXAM_FACE_REQUIRED),
+                "show_gaze": bool(cfg.EXAM_SHOW_GAZE_DOT), "room": bool(self.room_link)}
 
     def _on_flag(self, name, seconds, detail, snapshot=None):
         with self.lock:
@@ -77,6 +87,8 @@ class ExamApp:
 
     def _finish(self, reason):
         s = self.session
+        if s.face_match is not None and not s.face_match.get("skipped"):
+            s.face_match = {**s.face_match, **(self.monitor.face_summary() or {})}   # final scores and counts
         result = s.submit(reason)
         self.monitor.end_exam()
         if self.result_path is None:
@@ -161,6 +173,8 @@ class ExamApp:
                 return 200, s.payload()
             if s.finished is not None:
                 return 409, self._final_view()
+            if method == "POST" and path.startswith("/api/face/"):
+                return self._face(s, path, body)
             if method == "POST" and path.startswith("/api/cal/"):
                 return self._calibration(s, path, body)
             if method == "POST" and path == "/api/begin":
@@ -202,7 +216,7 @@ class ExamApp:
         self.session, self.result_path, self._camera_loss_logged = self._new_session(name, cid), None, False
         self.session_number += 1
         log_note("EXAM_REGISTERED", f"{name} ({cid})")
-        return 200, {"token": self.session.token, "gaze": self.gaze_wanted()}
+        return 200, {"token": self.session.token, "gaze": self.gaze_wanted(), "face": self.face_wanted()}
 
     # --------------------------- calibration and begin ---------------------------
     def _calibration(self, s, path, body):
@@ -234,6 +248,29 @@ class ExamApp:
             return 200, {"ok": True}
         return 404, {"error": "Unknown request"}
 
+    # ------------------------------ face check ------------------------------
+    def _face(self, s, path, body):
+        if s.begun:
+            return 409, {"error": "The exam has already started."}
+        if not self.face_wanted():
+            return 409, {"error": "Face matching is not available."}
+        if path == "/api/face/start":
+            if not self.monitor.begin_face_enrol():
+                return 409, {"error": "The face check is already running."}
+            return 200, {"ok": True}
+        if path == "/api/face/status":
+            return 200, self.monitor.face()
+        if path == "/api/face/skip":
+            if cfg.EXAM_FACE_REQUIRED:
+                return 403, {"error": "The face check is required for this exam."}
+            reason = str(body.get("reason", ""))[:200]
+            self.monitor.skip_face(reason)
+            s.face_match = {"skipped": True, "reason": reason}
+            s.add_event("system", "FACE_MATCH_SKIPPED", reason)
+            log_note("FACE_MATCH_SKIPPED", f"{s.name} ({s.candidate_id}) {reason}")
+            return 200, {"ok": True}
+        return 404, {"error": "Unknown request"}
+
     def calibration_frame(self, token):
         """JPEG of the calibration screen for the page (None when the token is wrong or no picture)."""
         with self.lock:
@@ -244,6 +281,15 @@ class ExamApp:
     def _begin(self, s):
         if s.begun:
             return 200, {"ok": True}
+        face = self.monitor.face() if self.face_wanted() else None
+        if face is not None and face.get("state") not in ("done", "skipped"):
+            return 409, {"error": "Complete the face check first (or choose to continue without it)."}
+        if face is not None and face.get("state") == "done":
+            s.face_match = self.monitor.face_summary()
+            snap = face.get("snapshot")
+            s.add_event("system", "FACE_ENROLLED", "reference made at the start", snapshot=snap)
+            log_note("FACE_ENROLLED", f"{s.name} ({s.candidate_id}) {s.face_match.get('reference_pictures')} pictures, "
+                     f"consistency {s.face_match.get('reference_consistency')}")
         cal = self.monitor.calibration()
         if self.gaze_wanted() and cal.get("state") not in ("done", "skipped"):
             return 409, {"error": "Calibrate your gaze first (or choose to continue without it)."}
@@ -273,7 +319,7 @@ class ExamApp:
         outcome, value = self.auth.login(body.get("key"))
         if outcome == "ok":
             log_note("INVIGILATOR_SIGNED_IN")
-            return 200, {"token": value, "title": self.title}
+            return 200, {"token": value, "title": self.title, "hub": self.room is not None}
         if outcome == "locked":
             wait = max(1, int(round(value)))
             log_note("INVIGILATOR_SIGN_IN_LOCKED", f"too many wrong keys, locked for {wait} s")
@@ -285,6 +331,11 @@ class ExamApp:
         """What the invigilator page shows. None if the sign-in token is not valid."""
         if not self.auth.valid(token):
             return None
+        return self.live_view()
+
+    def live_view(self):
+        """The state of this computer's exam as the invigilator console shows it (also what a candidate
+        computer reports to the hub)."""
         with self.lock:
             self._check_time()
             s = self.session
@@ -293,7 +344,9 @@ class ExamApp:
                    "camera": status["state"], "camera_message": status.get("message", ""),
                    "faces": status.get("faces"), "light": status.get("light"),
                    "active": status.get("active", []), "gaze": self.monitor.gaze(),
-                   "cal": self.monitor.calibration(), "session_number": self.session_number, "session": None}
+                   "cal": self.monitor.calibration(), "identity": status.get("identity"),
+                   "face": self.monitor.face() if self.face_wanted() else None,
+                   "session_number": self.session_number, "session": None}
             if s is not None:
                 out["session"] = {
                     "candidate": s.name, "candidate_id": s.candidate_id, "begun": s.begun,
@@ -302,7 +355,8 @@ class ExamApp:
                     "answered": len(s.answers), "total": len(s.order),
                     "events": s.events[-60:], "event_count": len(s.events),
                     "score": s.finished["score"] if s.finished else None,
-                    "calibration": s.calibration}
+                    "calibration": s.calibration, "face_match": s.face_match}
+                out["elapsed"] = round(max(0.0, cfg.EXAM_MINUTES * 60 - s.remaining()), 1) if s.begun else 0.0
             return out
 
     def admin_history(self, token, limit=12):
@@ -334,6 +388,56 @@ class ExamApp:
         except OSError:
             return None
 
+    # ------------------------------- the room (hub side) -------------------------------
+    def hub_post(self, path, token, name, raw, ip):
+        """The requests a candidate computer sends to the hub. Returns (status, payload dict) or
+        (status, None, jpeg) never; pictures come in as raw bytes."""
+        room = self.room
+        if room is None:
+            return 404, {"error": "This computer is not an invigilator hub."}
+        if path == "/api/hub/join":
+            body = _json_body(raw)
+            outcome, value = room.join(body.get("code"), body.get("label", ""), ip)
+            if outcome == "ok":
+                return 200, {"token": value, "report_seconds": cfg.ROOM_REPORT_SECONDS, "title": self.title}
+            if outcome == "locked":
+                wait = max(1, int(round(value)))
+                return 429, {"error": f"Too many wrong codes. Wait {wait} seconds.", "retry_seconds": wait}
+            if outcome == "full":
+                return 503, {"error": "The room is full."}
+            return 403, {"error": "That room code is not right."}
+        if path == "/api/hub/report":
+            reply = room.report(token, _json_body(raw))
+            return (200, reply) if reply is not None else (403, {"error": "Not joined"})
+        if path == "/api/hub/frame":
+            res = room.put_frame(token, raw)
+            return {"ok": (200, {"ok": True}), "denied": (403, {"error": "Not joined"}),
+                    "not_now": (409, {"error": "No picture is wanted now"}), "bad": (400, {"error": "Not a picture"})}[res]
+        if path == "/api/hub/picture":
+            res = room.put_picture(token, name, raw)
+            return {"ok": (200, {"ok": True}), "denied": (403, {"error": "Not joined"}), "bad": (400, {"error": "Not a picture"})}[res]
+        return 404, {"error": "Unknown request"}
+
+    def admin_room(self, token):
+        if not self.auth.valid(token) or self.room is None:
+            return None
+        return {**self.room.summary(), "title": self.title}
+
+    def admin_room_client(self, token, cid):
+        if not self.auth.valid(token) or self.room is None:
+            return None
+        return self.room.detail(cid)
+
+    def admin_room_frame(self, token, cid):
+        if not self.auth.valid(token) or self.room is None:
+            return None
+        return self.room.frame(cid)
+
+    def admin_room_picture(self, token, cid, name):
+        if not self.auth.valid(token) or self.room is None:
+            return None
+        return self.room.picture(cid, name)
+
     def admin_result(self, token):
         """The finished candidate's full result record, or None."""
         if not self.auth.valid(token):
@@ -341,6 +445,24 @@ class ExamApp:
         with self.lock:
             s = self.session
             return None if s is None or s.finished is None else s.finished
+
+
+def _json_body(raw):
+    try:
+        body = json.loads(raw or b"{}")
+    except ValueError:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _lan_names():
+    import socket
+    names = {"127.0.0.1", "localhost", "[::1]", socket.gethostname().lower()}
+    try:
+        names.add(socket.getfqdn().lower())
+    except OSError:
+        pass
+    return names
 
 
 def make_handler(app):
@@ -363,10 +485,17 @@ def make_handler(app):
         def _allowed_host(self):
             """On a loopback-only server only 127.0.0.1 / localhost names are served, which stops a
             web page on another site from reaching the exam through a rebinding trick."""
-            if cfg.EXAM_HOST not in ("127.0.0.1", "localhost", "::1"):
-                return True
             host = self.headers.get("Host", "")
             name = host.rsplit(":", 1)[0] if not host.startswith("[") else host.split("]")[0] + "]"
+            if cfg.EXAM_HOST not in ("127.0.0.1", "localhost", "::1"):
+                # On a network the page may be reached by an address, "localhost", or this computer's own name.
+                # Any other name could be a rebinding trick (an attacker's name pointing at this computer).
+                import ipaddress
+                try:
+                    ipaddress.ip_address(name.strip("[]"))
+                    return True
+                except ValueError:
+                    return name.lower() in _lan_names() or name.lower().endswith(".local")
             return name in ("127.0.0.1", "localhost", "[::1]")
 
         def _allowed_origin(self):
@@ -398,6 +527,22 @@ def make_handler(app):
                 if data is None:
                     return self._send(404, {"error": "Nothing to show yet"})
                 return self._send(200, data)
+            if path in ("/api/admin/room", "/api/admin/room/client"):
+                if not app.auth.valid(token):
+                    return self._send(403, {"error": "Not signed in"})
+                data = app.admin_room(token) if path == "/api/admin/room" else app.admin_room_client(token, query.get("id", [""])[0])
+                if data is None:
+                    return self._send(404, {"error": "Nothing to show"})
+                return self._send(200, data)
+            if path in ("/api/admin/room/frame", "/api/admin/room/picture"):
+                if not app.auth.valid(token):
+                    return self._send(403, {"error": "Not signed in"})
+                cid = query.get("id", [""])[0]
+                data = (app.admin_room_frame(token, cid) if path.endswith("/frame")
+                        else app.admin_room_picture(token, cid, query.get("name", [""])[0]))
+                if data is None:
+                    return self._send(404, {"error": "No such picture"})
+                return self._send(200, None, "image/jpeg", data)
             if path == "/api/admin/snapshot":
                 if not app.auth.valid(token):
                     return self._send(403, {"error": "Not signed in"})
@@ -419,6 +564,9 @@ def make_handler(app):
         def do_POST(self):
             if not self._allowed_origin():
                 return self._send(403, {"error": "Forbidden"})
+            parts = urlsplit(self.path)
+            if parts.path.startswith("/api/hub/"):
+                return self._hub_post(parts)
             try:
                 length = int(self.headers.get("Content-Length", "0"))
                 if length > MAX_BODY:
@@ -428,7 +576,27 @@ def make_handler(app):
                     raise ValueError
             except ValueError:
                 return self._send(400, {"error": "Bad request"})
-            status, payload = app.handle("POST", self.path.split("?")[0], body)
+            if parts.path == "/api/admin/room/forget":
+                if not app.auth.valid(self.headers.get("X-Admin-Token", "")) or app.room is None:
+                    return self._send(403, {"error": "Not signed in"})
+                res = app.room.forget(str(body.get("id", "")))
+                return self._send({"ok": 200, "missing": 404, "busy": 409}[res], {"result": res})
+            status, payload = app.handle("POST", parts.path, body)
+            self._send(status, payload)
+
+        def _hub_post(self, parts):
+            """Reports and pictures from the candidates' computers. Bodies can be larger than a page's request."""
+            path = parts.path
+            limit = MAX_FRAME if path == "/api/hub/frame" else MAX_PICTURE if path == "/api/hub/picture" else MAX_REPORT
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                return self._send(400, {"error": "Bad request"})
+            if length < 0 or length > limit:
+                return self._send(413, {"error": "Too large"})
+            raw = self.rfile.read(length)
+            name = parse_qs(parts.query).get("name", [""])[0]
+            status, payload = app.hub_post(path, self.headers.get("X-Hub-Token", ""), name, raw, self.client_address[0])
             self._send(status, payload)
     return Handler
 

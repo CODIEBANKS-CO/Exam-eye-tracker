@@ -1,0 +1,257 @@
+{
+ "candidate": "Adejumo Oluwapelumi Ajinde",
+ "candidate_id": "210934",
+ "started": "2026-11-01 16:10:03",
+ "finished": "2026-11-01 16:11:08",
+ "minutes_allowed": 20,
+ "minutes_used": 1.09,
+ "finish_reason": "submitted by candidate",
+ "score": 7,
+ "out_of": 15,
+ "answered": 7,
+ "questions": [
+  {
+   "number": 1,
+   "id": "q1",
+   "question": "Which of these Python data types is immutable?",
+   "chosen": "tuple",
+   "correct_answer": "tuple",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 8.2
+  },
+  {
+   "number": 2,
+   "id": "q10",
+   "question": "Which level of testing checks individual functions or classes in isolation?",
+   "chosen": "Unit testing",
+   "correct_answer": "Unit testing",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 20.5
+  },
+  {
+   "number": 3,
+   "id": "q9",
+   "question": "What does the acronym API stand for?",
+   "chosen": "Application Programming Interface",
+   "correct_answer": "Application Programming Interface",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 5.5
+  },
+  {
+   "number": 4,
+   "id": "q15",
+   "question": "What is the main benefit of Python's `with` statement when working with files?",
+   "chosen": "It closes the file automatically, even if an error occurs",
+   "correct_answer": "It closes the file automatically, even if an error occurs",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 10.1
+  },
+  {
+   "number": 5,
+   "id": "q8",
+   "question": "Which data structure removes items in first-in, first-out (FIFO) order?",
+   "chosen": "Queue",
+   "correct_answer": "Queue",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 3.5
+  },
+  {
+   "number": 6,
+   "id": "q6",
+   "question": "Which SQL clause filters rows AFTER they have been grouped?",
+   "chosen": "HAVING",
+   "correct_answer": "HAVING",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 6.6
+  },
+  {
+   "number": 7,
+   "id": "q11",
+   "question": "What is the value of 7 // 2 in Python?",
+   "chosen": "3",
+   "correct_answer": "3",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 8.5
+  },
+  {
+   "number": 8,
+   "id": "q2",
+   "question": "What does len({1, 2, 2, 3}) return in Python?",
+   "chosen": null,
+   "correct_answer": "3",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 2.4
+  },
+  {
+   "number": 9,
+   "id": "q7",
+   "question": "Which HTTP status code means the requested resource was not found?",
+   "chosen": null,
+   "correct_answer": "404",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 10,
+   "id": "q14",
+   "question": "In Scrum, what is the name of the fixed-length period in which a team completes a set of work?",
+   "chosen": null,
+   "correct_answer": "Sprint",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 11,
+   "id": "q5",
+   "question": "What is the time complexity of binary search on a sorted array of n items?",
+   "chosen": null,
+   "correct_answer": "O(log n)",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 12,
+   "id": "q12",
+   "question": "Which attack inserts malicious SQL through an input field to change a database query?",
+   "chosen": null,
+   "correct_answer": "SQL injection",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 13,
+   "id": "q4",
+   "question": "Which Git command creates a new branch and switches to it in one step?",
+   "chosen": null,
+   "correct_answer": "git checkout -b feature",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 14,
+   "id": "q3",
+   "question": "Which SOLID principle says a class should have only one reason to change?",
+   "chosen": null,
+   "correct_answer": "Single Responsibility Principle",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 15,
+   "id": "q13",
+   "question": "Which protocol encrypts web traffic between a browser and a server?",
+   "chosen": null,
+   "correct_answer": "HTTPS",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  }
+ ],
+ "gaze_calibration": {
+  "screen": [
+   1280,
+   720
+  ],
+  "accuracy_px": 182.9,
+  "accuracy_fraction": 0.1245,
+  "cross_check_px": 233.9,
+  "good": true
+ },
+ "face_match": {
+  "enrolled": true,
+  "reference_pictures": 6,
+  "reference_consistency": 0.643,
+  "checks": 37,
+  "failed_checks": 1,
+  "last_score": 0.663,
+  "lowest_score": 0.296,
+  "threshold": 0.363,
+  "reference_snapshot": "20261101_160623_FACE_ENROLLED.jpg"
+ },
+ "flag_counts": {
+  "FACE_ENROLLED": 1,
+  "LOOKING_LEFT": 1,
+  "LOOKING_RIGHT": 3,
+  "GAZE_OFF_SCREEN": 1,
+  "REPEATED_GLANCES": 1
+ },
+ "flags": [
+  {
+   "time_s": 227.3,
+   "question": null,
+   "source": "system",
+   "name": "FACE_ENROLLED",
+   "detail": "reference made at the start",
+   "snapshot": "20261101_160623_FACE_ENROLLED.jpg"
+  },
+  {
+   "time_s": 12.4,
+   "question": 2,
+   "source": "camera",
+   "name": "LOOKING_LEFT",
+   "detail": "",
+   "seconds": 3.0,
+   "snapshot": "20261101_161015_LOOKING_LEFT.jpg"
+  },
+  {
+   "time_s": 20.7,
+   "question": 2,
+   "source": "camera",
+   "name": "LOOKING_RIGHT",
+   "detail": "",
+   "seconds": 3.0,
+   "snapshot": "20261101_161024_LOOKING_RIGHT.jpg"
+  },
+  {
+   "time_s": 26.0,
+   "question": 2,
+   "source": "camera",
+   "name": "LOOKING_RIGHT",
+   "detail": "",
+   "seconds": 3.0,
+   "snapshot": "20261101_161029_LOOKING_RIGHT.jpg"
+  },
+  {
+   "time_s": 33.7,
+   "question": 3,
+   "source": "camera",
+   "name": "LOOKING_RIGHT",
+   "detail": "",
+   "seconds": 3.0,
+   "snapshot": "20261101_161037_LOOKING_RIGHT.jpg"
+  },
+  {
+   "time_s": 50.7,
+   "question": 6,
+   "source": "camera",
+   "name": "GAZE_OFF_SCREEN",
+   "detail": "gaze at (-441, 388) px on a 1280x720 screen",
+   "seconds": 2.0,
+   "snapshot": "20261101_161054_GAZE_OFF_SCREEN.jpg"
+  },
+  {
+   "time_s": 52.2,
+   "question": 6,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 60 s",
+   "seconds": 0.0,
+   "snapshot": "20261101_161055_REPEATED_GLANCES.jpg"
+  }
+ ],
+ "note": "Flags are evidence for a human reviewer, not proof of anything."
+}

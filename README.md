@@ -11,8 +11,23 @@ saved to `events.csv` with a snapshot, for a human to review.
     python gaze_demo.py --screen   gaze mapped onto the screen (see below)
     python exam_app.py             the exam: 15 multiple-choice questions + webcam monitor + gaze (see below)
 
-First run downloads the MediaPipe face model into `models/`. Offline? Download it from the
-address `LANDMARKER_URL` in `facelib/config.py` and save it in `models/`.
+Quick start for the exam (run these in a terminal opened in this folder; on Windows use `py` if `python` is not found):
+
+    python exam_app.py                      one computer: the exam, the camera checks and the invigilator console
+    python exam_app.py --no-camera          the same without a webcam (to write questions, or to try the page)
+    python exam_app.py --hub                a room: on the invigilator's computer; prints the room code and the command below
+    python exam_app.py --report-to 192.168.1.10:8765 --code K7QM-4XD2         a room: on each candidate's computer
+                                            (use the address and code the hub printed; add --label "Lab PC 3" to name the computer)
+
+To try a room on one computer, use two terminals: `python exam_app.py --hub --port 8765`, then
+`python exam_app.py --report-to 127.0.0.1:8765 --code <the code> --port 8766 --no-camera` (only one program can use the
+webcam), and open `http://127.0.0.1:8766` as the candidate. For a real room the computers must be on the same
+network and the hub's computer must allow the program through its firewall (port 8765).
+
+First run downloads the MediaPipe face model into `models/`, and the exam's face match downloads two more
+models (YuNet and SFace), so the first run needs internet. Offline? Download the face model from the
+address `LANDMARKER_URL` in `facelib/config.py` and save it in `models/`; the two face match models are at
+`YUNET_URL` and `SFACE_URL` in the same file (use the download button on the GitHub page, not "save page as").
 
 ## Folder layout
 
@@ -190,6 +205,91 @@ where the candidate was.
 The answer key sits in `questions.json` on the exam computer. For a real exam, keep that file
 on a server the candidate cannot open. Flags are for a human reviewer, never proof.
 
+## A room of candidates (one invigilator, many computers)
+
+Each candidate sits at their own computer and runs the exam and the camera checks exactly as before. The
+invigilator's computer (the "hub") shows every candidate at once, as a grid of camera pictures or as a list.
+
+    python exam_app.py --hub                                   on the invigilator's computer (no camera needed)
+    python exam_app.py --report-to 192.168.1.10:8765 --code K7QM-4XD2     on each candidate's computer
+    python exam_app.py --report-to 192.168.1.10:8765 --code K7QM-4XD2 --label "Lab PC 3"    (a name for the grid)
+
+The hub prints its invigilator key, a **room code** and the exact command to give each candidate (with its
+network address filled in), then opens the console. The candidate's computer needs only the hub's address and
+the room code. Both computers must be on the same network, and the hub's computer must allow the program
+through its firewall (port 8765, or the one you give with `--port`).
+
+* **The grid.** One tile per computer: the latest camera picture (refreshed every 2.5 s, a little slower for a
+  big room), the candidate's name, question and time left, and the flags that are active right now in plain
+  words. Tiles needing a look turn red and move to the front. "Needs a look" shows only those; "List" is the
+  same facts as a table. The tab title shows `(!)` and, with sound alerts on, a beep sounds when a candidate
+  newly needs a look.
+* **One candidate.** Click a tile (or a row) for the same detailed console as before: the red band, the live
+  picture, gaze map, face match, the full log with the picture taken at each flag, large view. "All
+  candidates" (or the Esc key) goes back.
+* **Connection lost.** A computer that has sent nothing for `ROOM_LOST_SECONDS` (8) shows "Connection lost".
+  During an exam that counts as needing a look (the program may have been closed), and it is written in that
+  candidate's log. It clears by itself when the computer reports again. A lost computer can be removed from
+  the room. If the hub cannot be reached, the candidate's exam carries on as normal.
+* **What a candidate's computer sends:** its status (name, question, time left, camera, faces, flags, gaze,
+  face match), a small camera picture (`ROOM_PREVIEW_WIDTH` 320 px) every few seconds **only while that exam is in
+  progress**, and the picture taken at each flag. Never the answers or the answer key. The notice the
+  candidate ticks says this when a room is watching. The hub keeps all pictures in memory only, deletes a
+  candidate's preview when they finish, and writes nothing to disk except short log lines.
+* **Trust.** The hub treats every candidate computer as untrusted: it cuts everything it receives down to
+  known fields and sizes, accepts only real small JPEG files, lets a computer change only its own entry, and
+  serves a picture only if that computer's own flags name it. Joining needs the room code (five wrong codes
+  lock joining for 30 s); the invigilator key is separate.
+
+Limits: this is for a room on one local network (tested up to a handful of computers, built for about 10 to
+50). The questions, the answer key, the marking and the result files still live on each candidate's own
+computer; moving them to the hub is part of the CBT engine milestone. The hub is plain HTTP, so on a shared
+or public network the room code and the pictures could be read by others on that network: use a network you
+trust. If the hub program is restarted, its pictures and log of connections are gone and the computers join
+again by themselves; each candidate's own computer still has its results, `events.csv` and snapshots.
+
+## Face match during the exam
+
+The camera program keeps checking that the person at the screen is the one who started the exam.
+(Settings are in the "face match inside the exam" block of `facelib/config.py`; `EXAM_FACE_MATCH = False`
+turns it all off.)
+
+1. **At the start.** After the consent tick, the exam window shows a short "Face check" before the
+   gaze calibration. The candidate looks at the screen and holds still while the camera program takes
+   `EXAM_FACE_SAMPLES` (6) clear, front-facing pictures. If the view is no good it says why ("We cannot
+   see your face", "More than one face is in view", "It is too dark", "Look straight at the screen",
+   "Move a little closer", "Keep your eyes open"). The pictures must also look like the same person, so a
+   second person stepping in during the check makes it fail. The exam clock starts only after this.
+2. **All the way through.** About once a second (`EXAM_FACE_CHECK_SECONDS`) the live face is compared with
+   those pictures. A different face for 3 s (`EXAM_FACE_MISMATCH_SECONDS`) raises `IDENTITY_MISMATCH`: the
+   candidate sees a calm warning, the invigilator console shows it in red. When a face comes back after being
+   missing or after a second face was in view, it is compared at once, so swapping places while out of view
+   is caught as fast as a swap in view.
+3. **When nobody can be matched.** If no clear front-facing view matched for `ID_UNVERIFIED_SECONDS` (45 s)
+   while somebody is in view, `IDENTITY_UNVERIFIED` is raised ("could not confirm who is at the screen"). That
+   is deliberately a different flag from a mismatch: looking away all the time is not a different person.
+4. **What the invigilator sees.** A "Face match" row in the console (same person, different from the start,
+   not confirmed for N s, waiting, skipped), the live score, the picture taken at the start next to every
+   identity flag's picture, and a `FACE_ENROLLED` entry in the log. The result file has a `face_match`
+   summary (pictures taken, how many comparisons, how many failed, lowest score, the start picture's name).
+5. **What is kept.** The reference is a set of face signatures held in memory only, thrown away when the exam
+   ends: no gallery file is written. One picture of the candidate at the start is saved with the other
+   snapshots so a person can compare (`EXAM_FACE_SAVE_REFERENCE = False` stops that).
+6. **Skipping.** If the check fails or the models are missing, the page offers "Try the face check again"
+   and "Continue without face matching" (recorded as `FACE_MATCH_SKIPPED`, with the reason). Set
+   `EXAM_FACE_REQUIRED = True` and there is no way around it.
+
+What this does and does not tell you:
+
+* The reference is made at the start of the exam, so it shows "the same person all the way through". It
+  does **not** show "the person who was registered": there is no student list or registration photo yet.
+  That needs a roster (milestone 2); `enroll_face.py` below is the old way to register a face beforehand.
+* Two people who look alike can score above the pass mark (`ID_MATCH_THRESHOLD` 0.363) and are not caught.
+* A printed photo or a picture on a phone held up to the camera can fool it: there is no liveness check.
+* Face recognition is less accurate for some groups and in poor light. Use the live score in the console to
+  tune the threshold on your own candidates. Every identity flag is a prompt for a person to look at the two
+  pictures, never proof.
+
 ## Adding a flag (the checks array)
 
 Open `facelib/checks.py` and add one line to `build_checks()`:
@@ -201,7 +301,9 @@ while the condition is happening; the flag fires once it has stayed True for the
 seconds. Expression scores need `USE_BLENDSHAPES = True`; set `PRINT_BLENDSHAPES = True` to
 print the strongest scores and pick thresholds.
 
-## Identity check (optional)
+## Identity check against a registered face (optional, older route)
+
+This checks against faces you registered beforehand. The face check inside the exam (above) does not need it.
 
 1. `python enroll_face.py "Candidate Name"` (asks for consent, then SPACE takes 5 samples)
 2. In `facelib/config.py` set `USE_IDENTITY = True` (and `ID_EXPECTED_NAME` if several people
@@ -223,7 +325,14 @@ accuracy inside the exam is whatever your own calibration gives (about 2.5 cm on
 your browser yet. Fullscreen and window-leave detection behave a little differently between
 browsers, so try the browser you will use for the demo.
 
-The invigilator console was tested in Chromium. Not checked: whether your browser opens the second window by itself (if it opens a tab instead, or nothing, use the printed link), and the sound alert on your computer.
+The room (hub, reporters and grid) was tested over real HTTP on one computer with several simulated candidate computers, a real Chromium and the real launcher. It has not run across two real computers: check the firewall, the printed address and the picture speed on your own network first, and try it with several real cameras before relying on it. The invigilator console was tested in Chromium. Not checked: whether your browser opens the second window by itself (if it opens a tab instead, or nothing, use the printed link), and the sound alert on your computer.
+
+Face match: the logic, the page, the console and the exam flow were tested (65 checks on the camera
+thread with scripted people, 20 in Chromium), but with a **stand-in for the face recognition model**,
+because the real YuNet and SFace files could not be downloaded where this was built. So the real
+models have never run here: the first exam run downloads them (needs internet), and the pass mark
+`ID_MATCH_THRESHOLD`, how many pictures are needed and how well the candidate's face matches under your
+light are untested on real people. Try it with two real people in front of your own camera first.
 
 Everything was tested with simulated faces (the covered-eye measure was also checked on one
 real photo). Not yet run: the real MediaPipe model and the two identity models (YuNet and

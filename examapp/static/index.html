@@ -55,6 +55,8 @@
   #calcancel { position: absolute; top: 12px; right: 12px; opacity: .7; z-index: 31; }
   #calpanel { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(10,14,22,.94); z-index: 32; padding: 24px; }
   #calpanel .card { max-width: 520px; text-align: center; }
+  .meter { height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; margin: 16px 0 4px; }
+  .meter > span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s; }
   #calpanel .btnrow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
   #gazedot { position: fixed; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; z-index: 15;
              background: rgba(26,127,70,.55); border: 2px solid #1a7f46; pointer-events: none;
@@ -100,10 +102,12 @@
     <div class="camera" id="cam" role="status" aria-live="polite"><span class="dot" id="camdot"></span><span id="camtext">Checking the camera...</span></div>
     <h2>Before you start</h2>
     <ul class="rules">
+      <li>This exam needs your camera. If your computer or browser asks for permission to use the camera, choose <b>Allow</b> before you start. The exam cannot begin without it.</li>
       <li>Sit in front of the camera with your face clearly visible and light in front of you.</li>
       <li>Stay in full screen on this exam page. Switching to other windows is recorded.</li>
       <li>One answer per question. You can go back and change answers until you submit or time runs out.</li>
-      <li>First you look at a row of dots on the screen so the camera can learn where your eyes are. Keep your head still. The exam clock starts after that.</li>
+      <li id="facerule" class="hidden">First the camera takes a few pictures of your face and keeps comparing you with them until the exam ends. Only you should be in view, and nobody else may take your place.</li>
+      <li>Then you look at a row of dots on the screen so the camera can learn where your eyes are. Keep your head still. The exam clock starts after that.</li>
       <li>The timer is kept by the server and cannot be paused.</li>
     </ul>
     <label for="name">Full name</label>
@@ -113,7 +117,12 @@
     <label class="check"><input id="consent" type="checkbox">
       <span>I understand that my webcam is analysed during this exam (face position, eyes and head direction) and that
       events such as looking away or leaving this window are recorded for a human reviewer. No video is stored;
-      a snapshot is saved only when a flag is raised.</span></label>
+      a snapshot is saved only when a flag is raised.<span id="roomconsent" class="hidden"> While the exam is in progress, the invigilator
+      also sees on another computer a small picture from my camera, refreshed every few seconds, together with my name, my progress and the flags.
+      Those live pictures are not stored and are deleted when the exam ends; the snapshots taken at flags are also sent to the invigilator.</span><span id="faceconsent" class="hidden"> My face is also matched, all through the
+      exam, against a few pictures taken at the start, to confirm that the same person sits the whole exam. Those pictures are kept
+      as a short list of numbers in memory only and are deleted when the exam ends. One picture of my face from the start is saved
+      so that a reviewer can compare it with any flag.</span></span></label>
     <button id="go" class="btn primary" disabled>Start exam</button>
     <div class="error" id="starterr" role="alert"></div>
   </div>
@@ -123,7 +132,7 @@
 <div id="calview" class="hidden">
   <img id="calimg" alt="Gaze calibration: look at each dot">
   <button id="calcancel" class="btn">Cancel</button>
-  <div id="calpanel" class="hidden"><div class="card"><h2 id="caltitle"></h2><p id="calmsg"></p><div class="btnrow" id="calbtns"></div></div></div>
+  <div id="calpanel" class="hidden"><div class="card"><h2 id="caltitle"></h2><p id="calmsg"></p><div class="meter hidden" id="facemeter" role="progressbar" aria-label="Face check progress" aria-valuemin="0" aria-valuemax="100"><span id="facebar"></span></div><div class="btnrow" id="calbtns"></div></div></div>
 </div>
 <div id="gazedot" class="hidden"></div>
 
@@ -222,6 +231,8 @@ async function pollInfo() {
     if (r.ok) { info = r.data; $("title").textContent = info.title;
       document.title = info.title;
       $("meta").textContent = `${info.questions} multiple-choice questions, ${info.minutes} minutes.`;
+      $("roomconsent").classList.toggle("hidden", !info.room);
+      $("faceconsent").classList.toggle("hidden", !info.face); $("facerule").classList.toggle("hidden", !info.face);
       showCamera(info.camera); updateStartButton(); }
   } catch (e) { $("camtext").textContent = "Cannot reach the exam server."; }
 }
@@ -235,8 +246,39 @@ $("go").addEventListener("click", async () => {
     if (document.fullscreenElement) document.exitFullscreen(); wasFullscreen = false; return; }
   token = r.data.token;
   try { sessionStorage.setItem("exam-token", token); } catch (e) {}
-  if (r.data.gaze) await calibrate(); else await beginExam();
+  flow = {gaze: !!r.data.gaze, face: !!r.data.face};
+  if (flow.face) await faceCheck(); else if (flow.gaze) await calibrate(); else await beginExam();
 });
+
+// ------------------------------- face check -------------------------------
+// The camera program takes a few pictures of the face and keeps comparing the live face with them.
+let flow = {gaze: false, face: false};
+const afterFace = () => flow.gaze ? calibrate() : beginExam();
+async function faceCheck() {
+  showOnly("calview"); $("calcancel").classList.add("hidden"); $("calimg").removeAttribute("src");
+  calPanel("Face check", "Look at the screen and hold still for a few seconds.", []);
+  $("facemeter").classList.remove("hidden"); $("facebar").style.width = "0%";
+  const r = await api("/api/face/start", {});
+  if (!r.ok) { $("facemeter").classList.add("hidden"); return faceFailed(r.data.error || "The face check could not start."); }
+  for (;;) {
+    await sleep(300);
+    const s = (await api("/api/face/status", {})).data;
+    if (s.state === "running") {
+      $("calmsg").textContent = s.hint || "Look at the screen and hold still.";
+      const pct = Math.round(100 * (s.progress || 0)); $("facebar").style.width = pct + "%"; $("facemeter").setAttribute("aria-valuenow", pct);
+      continue;
+    }
+    $("facemeter").classList.add("hidden");
+    if (s.state === "done") return afterFace();
+    return faceFailed(s.state === "unavailable" ? "Face matching is not available on this computer (" + (s.message || "its models are missing") + ")."
+                      : (s.message || "The face check did not finish."));
+  }
+}
+function faceFailed(msg) {
+  const buttons = [{label: "Try the face check again", primary: true, fn: () => { enterFullscreen().then(faceCheck); }}];
+  if (!(info && info.face_required)) buttons.push({label: "Continue without face matching", fn: async () => { await api("/api/face/skip", {reason: msg}); afterFace(); }});
+  calPanel("Face check", msg + (info && info.face_required ? " This exam needs the face check to pass." : ""), buttons);
+}
 
 // ------------------------------ gaze calibration ------------------------------
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -261,7 +303,7 @@ async function pumpFrames() {
   }
 }
 async function calibrate() {
-  showOnly("calview"); $("calpanel").classList.add("hidden");
+  showOnly("calview"); $("calpanel").classList.add("hidden"); $("calcancel").classList.remove("hidden");
   const r = await api("/api/cal/start", {w: window.innerWidth, h: window.innerHeight});
   if (!r.ok) return calFailed(r.data.error || "The calibration could not start.");
   calRunning = true; pumpFrames();
@@ -284,7 +326,7 @@ $("calcancel").addEventListener("click", () => api("/api/cal/key", {key: "esc"})
 document.addEventListener("keydown", e => { if (calRunning && e.code === "Space") { e.preventDefault(); api("/api/cal/key", {key: "space"}); } });
 async function beginExam() {
   const r = await api("/api/begin", {});
-  if (!r.ok) return calFailed(r.data.error || "The exam could not start.");
+  if (!r.ok) { const msg = r.data.error || "The exam could not start."; return /face check/i.test(msg) ? faceFailed(msg) : calFailed(msg); }
   await loadExam();
 }
 
@@ -295,8 +337,9 @@ async function loadExam() {
   if (r.data.finished) return showDone(r.data);
   if (!r.data.begun) {
     showOnly("calview");
-    return calPanel("Your exam has not started", "Click to set up your gaze tracking and begin.",
-      [{label: "Continue", primary: true, fn: async () => { await enterFullscreen(); if (info && info.gaze) calibrate(); else beginExam(); }}]);
+    return calPanel("Your exam has not started", "Click to set up the face check and gaze tracking and begin.",
+      [{label: "Continue", primary: true, fn: async () => { await enterFullscreen(); flow = {gaze: !!(info && info.gaze), face: !!(info && info.face)};
+        if (flow.face) faceCheck(); else if (flow.gaze) calibrate(); else beginExam(); }}]);
   }
   exam = r.data; remaining = exam.remaining; lastSync = performance.now();
   showOnly("examview"); $("calpanel").classList.add("hidden");

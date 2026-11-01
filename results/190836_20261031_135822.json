@@ -1,0 +1,274 @@
+{
+ "candidate": "Adejumo Oluwapelumi Ajinde",
+ "candidate_id": "190836",
+ "started": "2026-10-31 13:58:22",
+ "finished": "2026-10-31 13:59:22",
+ "minutes_allowed": 20,
+ "minutes_used": 0.99,
+ "finish_reason": "submitted by candidate",
+ "score": 1,
+ "out_of": 15,
+ "answered": 3,
+ "questions": [
+  {
+   "number": 1,
+   "id": "q14",
+   "question": "In Scrum, what is the name of the fixed-length period in which a team completes a set of work?",
+   "chosen": "Sprint",
+   "correct_answer": "Sprint",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 8.3
+  },
+  {
+   "number": 2,
+   "id": "q6",
+   "question": "Which SQL clause filters rows AFTER they have been grouped?",
+   "chosen": "WHERE",
+   "correct_answer": "HAVING",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 21.9
+  },
+  {
+   "number": 3,
+   "id": "q3",
+   "question": "Which SOLID principle says a class should have only one reason to change?",
+   "chosen": "Open/Closed Principle",
+   "correct_answer": "Single Responsibility Principle",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 26.7
+  },
+  {
+   "number": 4,
+   "id": "q5",
+   "question": "What is the time complexity of binary search on a sorted array of n items?",
+   "chosen": null,
+   "correct_answer": "O(log n)",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 2.8
+  },
+  {
+   "number": 5,
+   "id": "q10",
+   "question": "Which level of testing checks individual functions or classes in isolation?",
+   "chosen": null,
+   "correct_answer": "Unit testing",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 6,
+   "id": "q15",
+   "question": "What is the main benefit of Python's `with` statement when working with files?",
+   "chosen": null,
+   "correct_answer": "It closes the file automatically, even if an error occurs",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 7,
+   "id": "q11",
+   "question": "What is the value of 7 // 2 in Python?",
+   "chosen": null,
+   "correct_answer": "3",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 8,
+   "id": "q1",
+   "question": "Which of these Python data types is immutable?",
+   "chosen": null,
+   "correct_answer": "tuple",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 9,
+   "id": "q12",
+   "question": "Which attack inserts malicious SQL through an input field to change a database query?",
+   "chosen": null,
+   "correct_answer": "SQL injection",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 10,
+   "id": "q7",
+   "question": "Which HTTP status code means the requested resource was not found?",
+   "chosen": null,
+   "correct_answer": "404",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 11,
+   "id": "q2",
+   "question": "What does len({1, 2, 2, 3}) return in Python?",
+   "chosen": null,
+   "correct_answer": "3",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 12,
+   "id": "q13",
+   "question": "Which protocol encrypts web traffic between a browser and a server?",
+   "chosen": null,
+   "correct_answer": "HTTPS",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 13,
+   "id": "q8",
+   "question": "Which data structure removes items in first-in, first-out (FIFO) order?",
+   "chosen": null,
+   "correct_answer": "Queue",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 14,
+   "id": "q9",
+   "question": "What does the acronym API stand for?",
+   "chosen": null,
+   "correct_answer": "Application Programming Interface",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 15,
+   "id": "q4",
+   "question": "Which Git command creates a new branch and switches to it in one step?",
+   "chosen": null,
+   "correct_answer": "git checkout -b feature",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  }
+ ],
+ "gaze_calibration": {
+  "screen": [
+   1280,
+   720
+  ],
+  "accuracy_px": 126.1,
+  "accuracy_fraction": 0.0858,
+  "cross_check_px": 174.9,
+  "good": true
+ },
+ "face_match": {
+  "enrolled": true,
+  "reference_pictures": 6,
+  "reference_consistency": 0.72,
+  "checks": 38,
+  "failed_checks": 0,
+  "last_score": 0.877,
+  "lowest_score": 0.702,
+  "threshold": 0.363,
+  "reference_snapshot": "20261031_135655_FACE_ENROLLED.jpg"
+ },
+ "flag_counts": {
+  "FACE_ENROLLED": 1,
+  "LOOKING_RIGHT": 4,
+  "HEAD_TURNED_ONE_EYE": 2,
+  "REPEATED_GLANCES": 2
+ },
+ "flags": [
+  {
+   "time_s": 90.3,
+   "question": null,
+   "source": "system",
+   "name": "FACE_ENROLLED",
+   "detail": "reference made at the start",
+   "snapshot": "20261031_135655_FACE_ENROLLED.jpg"
+  },
+  {
+   "time_s": 3.5,
+   "question": 1,
+   "source": "camera",
+   "name": "LOOKING_RIGHT",
+   "detail": "",
+   "seconds": 2.5,
+   "snapshot": "20261031_135826_LOOKING_RIGHT.jpg"
+  },
+  {
+   "time_s": 3.9,
+   "question": 1,
+   "source": "camera",
+   "name": "HEAD_TURNED_ONE_EYE",
+   "detail": "head turned -38 deg, only the LEFT eye visible, its iris centred (0.45)",
+   "seconds": 2.5,
+   "snapshot": "20261031_135826_HEAD_TURNED_ONE_EYE.jpg"
+  },
+  {
+   "time_s": 8.8,
+   "question": 2,
+   "source": "camera",
+   "name": "LOOKING_RIGHT",
+   "detail": "",
+   "seconds": 2.5,
+   "snapshot": "20261031_135831_LOOKING_RIGHT.jpg"
+  },
+  {
+   "time_s": 26.7,
+   "question": 2,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 25 s",
+   "seconds": 0.0,
+   "snapshot": "20261031_135849_REPEATED_GLANCES.jpg"
+  },
+  {
+   "time_s": 42.4,
+   "question": 3,
+   "source": "camera",
+   "name": "LOOKING_RIGHT",
+   "detail": "",
+   "seconds": 2.5,
+   "snapshot": "20261031_135904_LOOKING_RIGHT.jpg"
+  },
+  {
+   "time_s": 45.7,
+   "question": 3,
+   "source": "camera",
+   "name": "LOOKING_RIGHT",
+   "detail": "",
+   "seconds": 2.5,
+   "snapshot": "20261031_135908_LOOKING_RIGHT.jpg"
+  },
+  {
+   "time_s": 46.2,
+   "question": 3,
+   "source": "camera",
+   "name": "HEAD_TURNED_ONE_EYE",
+   "detail": "head turned -38 deg, only the LEFT eye visible, its iris centred (0.45)",
+   "seconds": 2.5,
+   "snapshot": "20261031_135908_HEAD_TURNED_ONE_EYE.jpg"
+  },
+  {
+   "time_s": 50.5,
+   "question": 3,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 25 s",
+   "seconds": 0.0,
+   "snapshot": "20261031_135913_REPEATED_GLANCES.jpg"
+  }
+ ],
+ "note": "Flags are evidence for a human reviewer, not proof of anything."
+}

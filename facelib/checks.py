@@ -149,8 +149,9 @@ class GlanceCounter:
 
 
 # --------------------------- the checks array ----------------------------
-def build_checks():
-    """The list of checks the Monitor runs. Edit this list to add or remove flags."""
+def build_checks(gallery_identity=True):
+    """The list of checks the Monitor runs. Edit this list to add or remove flags.
+    `gallery_identity=False` leaves out the enrolled-gallery identity check (the exam makes its own)."""
     checks = [
         # who is in front of the camera
         Check("NO_FACE",        cfg.NO_FACE_SECONDS,    lambda s: s.n_faces == 0),
@@ -183,7 +184,7 @@ def build_checks():
         Check("EYES_DOWN",  cfg.EYE_VERT_SECONDS, _eyes_vertical("down"), enabled=cfg.USE_BLENDSHAPES),
     ]
 
-    if cfg.USE_IDENTITY:
+    if cfg.USE_IDENTITY and gallery_identity:
         from .identity import build_identity_check  # imported here so it costs nothing when off
         checks.append(build_identity_check())
 

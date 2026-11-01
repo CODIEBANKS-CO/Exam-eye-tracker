@@ -93,6 +93,7 @@ class ExamSession:
         self.deadline = self.started + self.minutes * 60.0
         self.begun = not defer_start   # with defer_start the clock starts at begin() (after calibration)
         self.calibration = None        # summary of the gaze calibration, for the result
+        self.face_match = None         # summary of the face match (reference made, scores, skipped), for the result
         self.answers = {}          # qid -> position in the file
         self.marked = set()
         self.seconds_on = {q.id: 0.0 for q in questions}
@@ -206,6 +207,7 @@ class ExamSession:
             "answered": len(self.answers),
             "questions": rows,
             "gaze_calibration": self.calibration,
+            "face_match": self.face_match,
             "flag_counts": counts,
             "flags": self.events,
             "note": "Flags are evidence for a human reviewer, not proof of anything.",
