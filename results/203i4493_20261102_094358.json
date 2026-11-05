@@ -1,0 +1,303 @@
+{
+ "candidate": "Adejumo Oluwapelumi Ajinde",
+ "candidate_id": "203i4493",
+ "started": "2026-11-02 09:43:58",
+ "finished": "2026-11-02 09:45:32",
+ "minutes_allowed": 20,
+ "minutes_used": 1.58,
+ "finish_reason": "submitted by candidate",
+ "score": 6,
+ "out_of": 15,
+ "answered": 8,
+ "questions": [
+  {
+   "number": 1,
+   "id": "q7",
+   "question": "Which HTTP status code means the requested resource was not found?",
+   "chosen": "404",
+   "correct_answer": "404",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 10.2
+  },
+  {
+   "number": 2,
+   "id": "q14",
+   "question": "In Scrum, what is the name of the fixed-length period in which a team completes a set of work?",
+   "chosen": "Sprint",
+   "correct_answer": "Sprint",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 12.1
+  },
+  {
+   "number": 3,
+   "id": "q10",
+   "question": "Which level of testing checks individual functions or classes in isolation?",
+   "chosen": "Unit testing",
+   "correct_answer": "Unit testing",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 4.5
+  },
+  {
+   "number": 4,
+   "id": "q2",
+   "question": "What does len({1, 2, 2, 3}) return in Python?",
+   "chosen": "4",
+   "correct_answer": "3",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 25.6
+  },
+  {
+   "number": 5,
+   "id": "q9",
+   "question": "What does the acronym API stand for?",
+   "chosen": "Application Programming Interface",
+   "correct_answer": "Application Programming Interface",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 14.7
+  },
+  {
+   "number": 6,
+   "id": "q13",
+   "question": "Which protocol encrypts web traffic between a browser and a server?",
+   "chosen": "HTTPS",
+   "correct_answer": "HTTPS",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 2.8
+  },
+  {
+   "number": 7,
+   "id": "q15",
+   "question": "What is the main benefit of Python's `with` statement when working with files?",
+   "chosen": "It closes the file automatically, even if an error occurs",
+   "correct_answer": "It closes the file automatically, even if an error occurs",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 6.3
+  },
+  {
+   "number": 8,
+   "id": "q5",
+   "question": "What is the time complexity of binary search on a sorted array of n items?",
+   "chosen": null,
+   "correct_answer": "O(log n)",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 6.4
+  },
+  {
+   "number": 9,
+   "id": "q4",
+   "question": "Which Git command creates a new branch and switches to it in one step?",
+   "chosen": "git merge feature",
+   "correct_answer": "git checkout -b feature",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 4.1
+  },
+  {
+   "number": 10,
+   "id": "q1",
+   "question": "Which of these Python data types is immutable?",
+   "chosen": null,
+   "correct_answer": "tuple",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 7.8
+  },
+  {
+   "number": 11,
+   "id": "q12",
+   "question": "Which attack inserts malicious SQL through an input field to change a database query?",
+   "chosen": null,
+   "correct_answer": "SQL injection",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 12,
+   "id": "q8",
+   "question": "Which data structure removes items in first-in, first-out (FIFO) order?",
+   "chosen": null,
+   "correct_answer": "Queue",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 13,
+   "id": "q3",
+   "question": "Which SOLID principle says a class should have only one reason to change?",
+   "chosen": null,
+   "correct_answer": "Single Responsibility Principle",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 14,
+   "id": "q6",
+   "question": "Which SQL clause filters rows AFTER they have been grouped?",
+   "chosen": null,
+   "correct_answer": "HAVING",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 15,
+   "id": "q11",
+   "question": "What is the value of 7 // 2 in Python?",
+   "chosen": null,
+   "correct_answer": "3",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  }
+ ],
+ "gaze_calibration": {
+  "screen": [
+   1280,
+   720
+  ],
+  "accuracy_px": 175.9,
+  "accuracy_fraction": 0.1197,
+  "cross_check_px": 263.9,
+  "good": true
+ },
+ "face_match": {
+  "enrolled": true,
+  "reference_pictures": 6,
+  "reference_consistency": 0.662,
+  "checks": 68,
+  "failed_checks": 11,
+  "last_score": 0.764,
+  "lowest_score": 0.089,
+  "threshold": 0.363,
+  "reference_snapshot": "20261102_094245_FACE_ENROLLED.jpg"
+ },
+ "flag_counts": {
+  "FACE_ENROLLED": 1,
+  "NO_FACE": 2,
+  "REPEATED_GLANCES": 4,
+  "EYES_COVERED": 3,
+  "IDENTITY_MISMATCH": 1,
+  "GAZE_OFF_SCREEN": 1
+ },
+ "flags": [
+  {
+   "time_s": 88.0,
+   "question": null,
+   "source": "system",
+   "name": "FACE_ENROLLED",
+   "detail": "reference made at the start",
+   "snapshot": "20261102_094245_FACE_ENROLLED.jpg"
+  },
+  {
+   "time_s": 13.3,
+   "question": 2,
+   "source": "camera",
+   "name": "NO_FACE",
+   "detail": "",
+   "seconds": 2.0,
+   "snapshot": "20261102_094411_NO_FACE.jpg"
+  },
+  {
+   "time_s": 16.1,
+   "question": 2,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 30 s",
+   "seconds": 0.0,
+   "snapshot": "20261102_094414_REPEATED_GLANCES.jpg"
+  },
+  {
+   "time_s": 30.6,
+   "question": 4,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 30 s",
+   "seconds": 0.0,
+   "snapshot": "20261102_094428_REPEATED_GLANCES.jpg"
+  },
+  {
+   "time_s": 37.6,
+   "question": 4,
+   "source": "camera",
+   "name": "EYES_COVERED",
+   "detail": "image detail left 0.10, right 0.11, normal about 0.22",
+   "seconds": 2.0,
+   "snapshot": "20261102_094435_EYES_COVERED.jpg"
+  },
+  {
+   "time_s": 43.9,
+   "question": 4,
+   "source": "camera",
+   "name": "IDENTITY_MISMATCH",
+   "detail": "best match candidate with score 0.19, needs 0.36",
+   "seconds": 3.0,
+   "snapshot": "20261102_094442_IDENTITY_MISMATCH.jpg"
+  },
+  {
+   "time_s": 53.7,
+   "question": 5,
+   "source": "camera",
+   "name": "NO_FACE",
+   "detail": "",
+   "seconds": 2.0,
+   "snapshot": "20261102_094451_NO_FACE.jpg"
+  },
+  {
+   "time_s": 60.1,
+   "question": 5,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 30 s",
+   "seconds": 0.0,
+   "snapshot": "20261102_094458_REPEATED_GLANCES.jpg"
+  },
+  {
+   "time_s": 64.4,
+   "question": 5,
+   "source": "camera",
+   "name": "EYES_COVERED",
+   "detail": "image detail left 0.08, right 0.14, normal about 0.58",
+   "seconds": 2.0,
+   "snapshot": "20261102_094502_EYES_COVERED.jpg"
+  },
+  {
+   "time_s": 75.0,
+   "question": 7,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 30 s",
+   "seconds": 0.0,
+   "snapshot": "20261102_094513_REPEATED_GLANCES.jpg"
+  },
+  {
+   "time_s": 83.2,
+   "question": 9,
+   "source": "camera",
+   "name": "GAZE_OFF_SCREEN",
+   "detail": "gaze at (656, 929) px on a 1280x720 screen",
+   "seconds": 2.0,
+   "snapshot": "20261102_094521_GAZE_OFF_SCREEN.jpg"
+  },
+  {
+   "time_s": 87.9,
+   "question": 10,
+   "source": "camera",
+   "name": "EYES_COVERED",
+   "detail": "image detail left 0.18, right 0.12, normal about 0.67",
+   "seconds": 2.0,
+   "snapshot": "20261102_094526_EYES_COVERED.jpg"
+  }
+ ],
+ "note": "Flags are evidence for a human reviewer, not proof of anything."
+}

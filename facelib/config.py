@@ -127,7 +127,7 @@ GLANCE_CHECK = True
 GLANCE_MIN_SECONDS = 0.5     # a look-away shorter than this is ignored (noise, a blink of movement)
 GLANCE_GAP_SECONDS = 0.4     # back to the screen for less than this = still the same look-away
 GLANCE_COUNT = 4             # this many look-aways ...
-GLANCE_WINDOW_SECONDS = 60.0 # ... inside this many seconds raise the flag
+GLANCE_WINDOW_SECONDS = 30.0 # ... inside this many seconds raise the flag
 GLANCE_FLAG_SECONDS = 5.0    # the red banner stays up this long; counting then starts again from zero
 
 # ----------------------- expressions (optional) --------------------------

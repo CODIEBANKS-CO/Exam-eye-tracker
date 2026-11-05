@@ -172,3 +172,43 @@ timestamp,event,seconds_at_flag,snapshot,detail
 2026-11-01T16:10:54,GAZE_OFF_SCREEN,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261101_161054_GAZE_OFF_SCREEN.jpg,"Q6: gaze at (-441, 388) px on a 1280x720 screen"
 2026-11-01T16:10:55,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261101_161055_REPEATED_GLANCES.jpg,Q6: 4 look-aways in the last 60 s
 2026-11-01T16:13:35,INVIGILATOR_SIGNED_IN,,,
+2026-11-02T09:29:30,INVIGILATOR_SIGNED_IN,,,
+2026-11-02T09:30:28,EXAM_REGISTERED,,,Adejumo Oluwapelumi Ajinde (2808098)
+2026-11-02T09:30:31,FACE_ENROLLED,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_093031_FACE_ENROLLED.jpg,picture of the candidate at the start
+2026-11-02T09:31:09,FACE_ENROLLED,,,"Adejumo Oluwapelumi Ajinde (2808098) 6 pictures, consistency 0.46"
+2026-11-02T09:31:09,GAZE_CALIBRATED,,,"Adejumo Oluwapelumi Ajinde (2808098) accuracy about 110.3 px on [1280, 720]"
+2026-11-02T09:31:09,EXAM_STARTED,,,Adejumo Oluwapelumi Ajinde (2808098)
+2026-11-02T09:31:23,LOOKING_RIGHT,3.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_093123_LOOKING_RIGHT.jpg,Q3
+2026-11-02T09:31:32,GAZE_OFF_SCREEN,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_093132_GAZE_OFF_SCREEN.jpg,"Q4: gaze at (862, -277) px on a 1280x720 screen"
+2026-11-02T09:31:38,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_093138_REPEATED_GLANCES.jpg,Q4: 4 look-aways in the last 60 s
+2026-11-02T09:32:19,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_093219_REPEATED_GLANCES.jpg,Q9: 4 look-aways in the last 60 s
+2026-11-02T09:32:22,NO_FACE,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_093222_NO_FACE.jpg,Q9
+2026-11-02T09:32:42,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_093242_REPEATED_GLANCES.jpg,Q10: 4 look-aways in the last 60 s
+2026-11-02T09:39:49,EXAM_REGISTERED,,,Adejumo Oluwapelumi Ajinde (21309301)
+2026-11-02T09:39:53,FACE_ENROLLED,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_093953_FACE_ENROLLED.jpg,picture of the candidate at the start
+2026-11-02T09:40:35,FACE_ENROLLED,,,"Adejumo Oluwapelumi Ajinde (21309301) 6 pictures, consistency 0.848"
+2026-11-02T09:40:35,GAZE_CALIBRATED,,,"Adejumo Oluwapelumi Ajinde (21309301) accuracy about 62.9 px on [1280, 720]"
+2026-11-02T09:40:35,EXAM_STARTED,,,Adejumo Oluwapelumi Ajinde (21309301)
+2026-11-02T09:40:46,LOOKING_LEFT,3.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094046_LOOKING_LEFT.jpg,Q2
+2026-11-02T09:41:01,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094101_REPEATED_GLANCES.jpg,Q2: 4 look-aways in the last 60 s
+2026-11-02T09:41:03,LEFT_EXAM_WINDOW,,,Q2: the exam window lost focus or was hidden
+2026-11-02T09:41:03,LEFT_EXAM_WINDOW,,,Q2: the exam window lost focus or was hidden
+2026-11-02T09:41:03,LEFT_EXAM_WINDOW,,,Q2: the exam window lost focus or was hidden
+2026-11-02T09:41:05,LEFT_EXAM_WINDOW,,,Q2: the exam window lost focus or was hidden
+2026-11-02T09:41:36,INVIGILATOR_SIGNED_IN,,,
+2026-11-02T09:42:30,EXAM_REGISTERED,,,Adejumo Oluwapelumi Ajinde (203i4493)
+2026-11-02T09:42:45,FACE_ENROLLED,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094245_FACE_ENROLLED.jpg,picture of the candidate at the start
+2026-11-02T09:43:58,FACE_ENROLLED,,,"Adejumo Oluwapelumi Ajinde (203i4493) 6 pictures, consistency 0.662"
+2026-11-02T09:43:58,GAZE_CALIBRATED,,,"Adejumo Oluwapelumi Ajinde (203i4493) accuracy about 175.9 px on [1280, 720]"
+2026-11-02T09:43:58,EXAM_STARTED,,,Adejumo Oluwapelumi Ajinde (203i4493)
+2026-11-02T09:44:11,NO_FACE,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094411_NO_FACE.jpg,Q2
+2026-11-02T09:44:14,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094414_REPEATED_GLANCES.jpg,Q2: 4 look-aways in the last 30 s
+2026-11-02T09:44:28,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094428_REPEATED_GLANCES.jpg,Q4: 4 look-aways in the last 30 s
+2026-11-02T09:44:35,EYES_COVERED,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094435_EYES_COVERED.jpg,"Q4: image detail left 0.10, right 0.11, normal about 0.22"
+2026-11-02T09:44:42,IDENTITY_MISMATCH,3.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094442_IDENTITY_MISMATCH.jpg,"Q4: best match candidate with score 0.19, needs 0.36"
+2026-11-02T09:44:51,NO_FACE,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094451_NO_FACE.jpg,Q5
+2026-11-02T09:44:58,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094458_REPEATED_GLANCES.jpg,Q5: 4 look-aways in the last 30 s
+2026-11-02T09:45:02,EYES_COVERED,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094502_EYES_COVERED.jpg,"Q5: image detail left 0.08, right 0.14, normal about 0.58"
+2026-11-02T09:45:13,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094513_REPEATED_GLANCES.jpg,Q7: 4 look-aways in the last 30 s
+2026-11-02T09:45:21,GAZE_OFF_SCREEN,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094521_GAZE_OFF_SCREEN.jpg,"Q9: gaze at (656, 929) px on a 1280x720 screen"
+2026-11-02T09:45:26,EYES_COVERED,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094526_EYES_COVERED.jpg,"Q10: image detail left 0.18, right 0.12, normal about 0.67"
