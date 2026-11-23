@@ -212,3 +212,24 @@ timestamp,event,seconds_at_flag,snapshot,detail
 2026-11-02T09:45:13,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094513_REPEATED_GLANCES.jpg,Q7: 4 look-aways in the last 30 s
 2026-11-02T09:45:21,GAZE_OFF_SCREEN,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094521_GAZE_OFF_SCREEN.jpg,"Q9: gaze at (656, 929) px on a 1280x720 screen"
 2026-11-02T09:45:26,EYES_COVERED,2.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261102_094526_EYES_COVERED.jpg,"Q10: image detail left 0.18, right 0.12, normal about 0.67"
+2026-11-05T12:57:35,INVIGILATOR_SIGNED_IN,,,
+2026-11-06T09:58:24,INVIGILATOR_SIGNED_IN,,,
+2026-11-06T09:59:16,EXAM_REGISTERED,,,GIFT PRECIOUS (446423)
+2026-11-06T09:59:25,FACE_ENROLLED,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261106_095925_FACE_ENROLLED.jpg,picture of the candidate at the start
+2026-11-06T10:00:46,FACE_ENROLLED,,,"GIFT PRECIOUS (446423) 6 pictures, consistency 0.47"
+2026-11-06T10:00:46,GAZE_CALIBRATED,,,"GIFT PRECIOUS (446423) accuracy about 125.4 px on [1280, 720]"
+2026-11-06T10:00:46,EXAM_STARTED,,,GIFT PRECIOUS (446423)
+2026-11-06T10:00:47,RIGHT_EYE_HIDDEN,1.5,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261106_100047_RIGHT_EYE_HIDDEN.jpg,Q1: right eye looks covered: image detail 0.43 against 1.24 for an uncovered eye
+2026-11-06T10:00:53,RIGHT_EYE_HIDDEN,1.5,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261106_100053_RIGHT_EYE_HIDDEN.jpg,Q1: right eye looks covered: image detail 0.33 against 0.89 for an uncovered eye
+2026-11-06T10:00:55,RIGHT_EYE_HIDDEN,1.5,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261106_100055_RIGHT_EYE_HIDDEN.jpg,Q1: right eye looks covered: image detail 0.32 against 1.02 for an uncovered eye
+2026-11-06T10:01:07,REPEATED_GLANCES,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261106_100107_REPEATED_GLANCES.jpg,Q2: 4 look-aways in the last 60 s
+2026-11-06T10:01:07,RIGHT_EYE_HIDDEN,1.5,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261106_100107_RIGHT_EYE_HIDDEN.jpg,Q2: right eye looks covered: image detail 0.38 against 1.93 for an uncovered eye
+2026-11-23T10:08:33,LOOKING_UP,3.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261123_100833_LOOKING_UP.jpg,
+2026-11-23T10:09:01,LOOKING_RIGHT,3.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261123_100901_LOOKING_RIGHT.jpg,
+2026-11-23T10:09:19,INVIGILATOR_SIGNED_IN,,,
+2026-11-23T10:15:43,EXAM_REGISTERED,,,Adejumo Oluwapelumi Ajinde (1230721)
+2026-11-23T10:15:43,ROOM_COMPUTER_JOINED,,,Adejumo Oluwapelumi Ajinde (192.168.100.154)
+2026-11-23T10:17:37,FACE_ENROLLED,0.0,C:\Users\LOGAN\Documents\CYBERSECURITY\COMPUTER VISION\Exam-eye-tracker\snapshots\20261123_101737_FACE_ENROLLED.jpg,picture of the candidate at the start
+2026-11-23T10:19:14,GAZE_TRACKING_SKIPPED,,,"Adejumo Oluwapelumi Ajinde (1230721) The camera could not see your eyes clearly enough. Check the light on your face, sit still and try again."
+2026-11-23T10:19:15,FACE_ENROLLED,,,"Adejumo Oluwapelumi Ajinde (1230721) 6 pictures, consistency 0.926"
+2026-11-23T10:19:15,EXAM_STARTED,,,Adejumo Oluwapelumi Ajinde (1230721)

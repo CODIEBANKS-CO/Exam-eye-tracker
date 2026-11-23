@@ -1,0 +1,246 @@
+{
+ "candidate": "GIFT PRECIOUS",
+ "candidate_id": "446423",
+ "started": "2026-11-06 10:00:46",
+ "finished": "2026-11-06 10:01:23",
+ "minutes_allowed": 20,
+ "minutes_used": 0.62,
+ "finish_reason": "submitted by candidate",
+ "score": 1,
+ "out_of": 15,
+ "answered": 4,
+ "questions": [
+  {
+   "number": 1,
+   "id": "q7",
+   "question": "Which HTTP status code means the requested resource was not found?",
+   "chosen": "404",
+   "correct_answer": "404",
+   "correct": true,
+   "marked_for_review": false,
+   "seconds_on_question": 11.2
+  },
+  {
+   "number": 2,
+   "id": "q4",
+   "question": "Which Git command creates a new branch and switches to it in one step?",
+   "chosen": "git branch -d feature",
+   "correct_answer": "git checkout -b feature",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 12.8
+  },
+  {
+   "number": 3,
+   "id": "q12",
+   "question": "Which attack inserts malicious SQL through an input field to change a database query?",
+   "chosen": null,
+   "correct_answer": "SQL injection",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 2.3
+  },
+  {
+   "number": 4,
+   "id": "q6",
+   "question": "Which SQL clause filters rows AFTER they have been grouped?",
+   "chosen": "WHERE",
+   "correct_answer": "HAVING",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 3.5
+  },
+  {
+   "number": 5,
+   "id": "q5",
+   "question": "What is the time complexity of binary search on a sorted array of n items?",
+   "chosen": "O(n log n)",
+   "correct_answer": "O(log n)",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 4.3
+  },
+  {
+   "number": 6,
+   "id": "q13",
+   "question": "Which protocol encrypts web traffic between a browser and a server?",
+   "chosen": null,
+   "correct_answer": "HTTPS",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 3.0
+  },
+  {
+   "number": 7,
+   "id": "q11",
+   "question": "What is the value of 7 // 2 in Python?",
+   "chosen": null,
+   "correct_answer": "3",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 8,
+   "id": "q10",
+   "question": "Which level of testing checks individual functions or classes in isolation?",
+   "chosen": null,
+   "correct_answer": "Unit testing",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 9,
+   "id": "q15",
+   "question": "What is the main benefit of Python's `with` statement when working with files?",
+   "chosen": null,
+   "correct_answer": "It closes the file automatically, even if an error occurs",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 10,
+   "id": "q3",
+   "question": "Which SOLID principle says a class should have only one reason to change?",
+   "chosen": null,
+   "correct_answer": "Single Responsibility Principle",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 11,
+   "id": "q1",
+   "question": "Which of these Python data types is immutable?",
+   "chosen": null,
+   "correct_answer": "tuple",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 12,
+   "id": "q2",
+   "question": "What does len({1, 2, 2, 3}) return in Python?",
+   "chosen": null,
+   "correct_answer": "3",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 13,
+   "id": "q9",
+   "question": "What does the acronym API stand for?",
+   "chosen": null,
+   "correct_answer": "Application Programming Interface",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 14,
+   "id": "q14",
+   "question": "In Scrum, what is the name of the fixed-length period in which a team completes a set of work?",
+   "chosen": null,
+   "correct_answer": "Sprint",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  },
+  {
+   "number": 15,
+   "id": "q8",
+   "question": "Which data structure removes items in first-in, first-out (FIFO) order?",
+   "chosen": null,
+   "correct_answer": "Queue",
+   "correct": false,
+   "marked_for_review": false,
+   "seconds_on_question": 0.0
+  }
+ ],
+ "gaze_calibration": {
+  "screen": [
+   1280,
+   720
+  ],
+  "accuracy_px": 125.4,
+  "accuracy_fraction": 0.0854,
+  "cross_check_px": 165.9,
+  "good": true
+ },
+ "face_match": {
+  "enrolled": true,
+  "reference_pictures": 6,
+  "reference_consistency": 0.47,
+  "checks": 27,
+  "failed_checks": 0,
+  "last_score": 0.831,
+  "lowest_score": 0.473,
+  "threshold": 0.363,
+  "reference_snapshot": "20261106_095925_FACE_ENROLLED.jpg"
+ },
+ "flag_counts": {
+  "FACE_ENROLLED": 1,
+  "RIGHT_EYE_HIDDEN": 4,
+  "REPEATED_GLANCES": 1
+ },
+ "flags": [
+  {
+   "time_s": 89.2,
+   "question": null,
+   "source": "system",
+   "name": "FACE_ENROLLED",
+   "detail": "reference made at the start",
+   "snapshot": "20261106_095925_FACE_ENROLLED.jpg"
+  },
+  {
+   "time_s": 1.6,
+   "question": 1,
+   "source": "camera",
+   "name": "RIGHT_EYE_HIDDEN",
+   "detail": "right eye looks covered: image detail 0.43 against 1.24 for an uncovered eye",
+   "seconds": 1.5,
+   "snapshot": "20261106_100047_RIGHT_EYE_HIDDEN.jpg"
+  },
+  {
+   "time_s": 7.2,
+   "question": 1,
+   "source": "camera",
+   "name": "RIGHT_EYE_HIDDEN",
+   "detail": "right eye looks covered: image detail 0.33 against 0.89 for an uncovered eye",
+   "seconds": 1.5,
+   "snapshot": "20261106_100053_RIGHT_EYE_HIDDEN.jpg"
+  },
+  {
+   "time_s": 9.7,
+   "question": 1,
+   "source": "camera",
+   "name": "RIGHT_EYE_HIDDEN",
+   "detail": "right eye looks covered: image detail 0.32 against 1.02 for an uncovered eye",
+   "seconds": 1.5,
+   "snapshot": "20261106_100055_RIGHT_EYE_HIDDEN.jpg"
+  },
+  {
+   "time_s": 21.8,
+   "question": 2,
+   "source": "camera",
+   "name": "REPEATED_GLANCES",
+   "detail": "4 look-aways in the last 60 s",
+   "seconds": 0.0,
+   "snapshot": "20261106_100107_REPEATED_GLANCES.jpg"
+  },
+  {
+   "time_s": 21.9,
+   "question": 2,
+   "source": "camera",
+   "name": "RIGHT_EYE_HIDDEN",
+   "detail": "right eye looks covered: image detail 0.38 against 1.93 for an uncovered eye",
+   "seconds": 1.5,
+   "snapshot": "20261106_100107_RIGHT_EYE_HIDDEN.jpg"
+  }
+ ],
+ "note": "Flags are evidence for a human reviewer, not proof of anything."
+}

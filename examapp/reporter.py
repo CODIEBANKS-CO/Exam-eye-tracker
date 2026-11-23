@@ -153,7 +153,7 @@ class Reporter(threading.Thread):
                 self._set("offline", getattr(exc, "reason", None) or str(exc))
             except Exception as exc:                     # the exam must go on whatever happens here
                 self._set("offline", f"unexpected problem: {exc}")
-            self._halt.wait(self.seconds)
+            self._halt.wait(min(self.seconds, self._frame_every) if self._send_frames else self.seconds)
         self.app.monitor.want_preview(False)
         self.state = "stopped" if self.state != "wrong_code" else self.state
 

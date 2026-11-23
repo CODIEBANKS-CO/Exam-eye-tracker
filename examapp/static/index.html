@@ -90,6 +90,11 @@
   .overlay { position: fixed; inset: 0; background: rgba(10,14,22,.92); color: #fff; z-index: 20; display: grid;
              place-items: center; text-align: center; padding: 24px; }
   .big { font-size: 2.2rem; font-weight: 700; }
+  #selfview { display: block; width: 100%; max-width: 260px; aspect-ratio: 4 / 3; object-fit: cover; margin: 0 0 14px;
+              border-radius: 8px; background: #000; transform: scaleX(-1); }
+  #capvideo { position: fixed; left: -1000px; top: 0; width: 160px; height: 120px; pointer-events: none; }
+  #camwarn { position: sticky; top: 56px; z-index: 6; }
+  #codeinput { font-size: 1.4rem; letter-spacing: .12em; text-transform: uppercase; text-align: center; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -99,7 +104,8 @@
   <div class="card">
     <h1 id="title">Online Exam</h1>
     <p class="muted" id="meta">Loading...</p>
-    <div class="camera" id="cam" role="status" aria-live="polite"><span class="dot" id="camdot"></span><span id="camtext">Checking the camera...</span></div>
+    <div class="camera" id="cam" role="status" aria-live="polite"><span class="dot" id="camdot"></span><span id="camtext">Checking the camera...</span><button class="btn hidden" id="camretry" style="margin-left:auto">Try the camera again</button></div>
+    <video id="selfview" class="hidden" autoplay muted playsinline aria-label="Your camera, as the exam sees you"></video>
     <h2>Before you start</h2>
     <ul class="rules">
       <li>This exam needs your camera. If your computer or browser asks for permission to use the camera, choose <b>Allow</b> before you start. The exam cannot begin without it.</li>
@@ -110,14 +116,22 @@
       <li>Then you look at a row of dots on the screen so the camera can learn where your eyes are. Keep your head still. The exam clock starts after that.</li>
       <li>The timer is kept by the server and cannot be paused.</li>
     </ul>
-    <label for="name">Full name</label>
-    <input id="name" type="text" autocomplete="off" maxlength="80">
-    <label for="cid">Candidate ID</label>
-    <input id="cid" type="text" autocomplete="off" maxlength="40">
+    <div id="idfields">
+      <label for="name">Full name</label>
+      <input id="name" type="text" autocomplete="off" maxlength="80">
+      <label for="cid">Candidate ID</label>
+      <input id="cid" type="text" autocomplete="off" maxlength="40">
+    </div>
+    <div id="codefield" class="hidden">
+      <label for="codeinput">Your access code</label>
+      <input id="codeinput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="XXXX-XXXX">
+      <p class="muted" id="joined" style="margin:8px 0 0"></p>
+    </div>
     <label class="check"><input id="consent" type="checkbox">
       <span>I understand that my webcam is analysed during this exam (face position, eyes and head direction) and that
       events such as looking away or leaving this window are recorded for a human reviewer. No video is stored;
-      a snapshot is saved only when a flag is raised.<span id="roomconsent" class="hidden"> While the exam is in progress, the invigilator
+      a snapshot is saved only when a flag is raised.<span id="browserconsent" class="hidden"> This page sends a small picture from my camera, several times a second, to the exam computer, which analyses it.
+      Those pictures are not recorded or kept by this page or my browser.</span><span id="roomconsent" class="hidden"> While the exam is in progress, the invigilator
       also sees on another computer a small picture from my camera, refreshed every few seconds, together with my name, my progress and the flags.
       Those live pictures are not stored and are deleted when the exam ends; the snapshots taken at flags are also sent to the invigilator.</span><span id="faceconsent" class="hidden"> My face is also matched, all through the
       exam, against a few pictures taken at the start, to confirm that the same person sits the whole exam. Those pictures are kept
@@ -146,6 +160,7 @@
     </div>
   </div></div>
   <div id="warn" class="banner hidden" role="alert" aria-live="assertive"></div>
+  <div id="camwarn" class="banner hidden" role="alert">Your camera stopped sending pictures. Check that it is connected and allowed in this browser. Trying to reconnect...</div>
   <div class="wrap exam">
     <section class="card" aria-labelledby="qtext">
       <div class="qnum" id="qnum"></div>
@@ -184,6 +199,14 @@
   <div class="row"><button class="btn" id="cancel">Keep working</button><button class="btn primary" id="yes">Submit now</button></div>
 </dialog>
 
+<video id="capvideo" autoplay muted playsinline aria-hidden="true"></video>
+
+<div id="cut" class="overlay hidden" role="alertdialog" aria-label="Exam opened in another browser" style="z-index:40">
+  <div><p class="big">This exam was opened somewhere else</p>
+  <p>The same access code was used in another browser, so this page has been closed. This was recorded for the invigilator.
+  If that was not you, tell the invigilator now. If it was you, carry on in the other browser.</p></div>
+</div>
+
 <div id="fs" class="overlay hidden" role="alertdialog" aria-label="Return to full screen">
   <div><p class="big">Please return to full screen</p>
   <p>The exam continues to run while you are away. This was recorded.</p>
@@ -196,6 +219,7 @@ const $ = id => document.getElementById(id);
 const LETTERS = "ABCDEFGH";
 let token = null, exam = null, index = 0, remaining = 0, lastSync = 0, finished = false;
 let wasFullscreen = false, away = null, pending = {}, info = null;
+let browserMode = false, joined = false, prep = null, camStream = null, camErr = "", pumpOn = false, pumpGen = 0, preparing = false;
 
 async function api(path, body) {
   const opts = body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"},
@@ -203,11 +227,20 @@ async function api(path, body) {
   const r = await fetch(path, opts);
   let data = {};
   try { data = await r.json(); } catch (e) {}
+  if (r.status === 401 && browserMode && joined && token && path !== "/api/join") cutOff();
   return {ok: r.ok, status: r.status, data};
 }
 
 // ------------------------------- start screen -------------------------------
 function updateStartButton() {
+  if (browserMode) {
+    const code = $("codeinput").value.replace(/[^A-Za-z0-9]/g, "");
+    const ready = info && info.open_join ? ($("name").value.trim() && $("cid").value.trim()) : code.length >= 6;
+    if (!joined) { $("go").textContent = "Join the exam"; $("go").disabled = !(ready && $("consent").checked); return; }
+    $("go").textContent = "Start exam";
+    $("go").disabled = !(prep && prep.camera && prep.camera.state === "running" && !camErr);
+    return;
+  }
   const cam = info && info.camera ? info.camera.state : "starting";
   const ready = $("name").value.trim() && $("cid").value.trim() && $("consent").checked && (cam === "running" || cam === "off");
   $("go").disabled = !ready;
@@ -216,6 +249,9 @@ function showCamera(c) {
   const dot = $("camdot");
   dot.className = "dot";
   let text;
+  $("camretry").classList.toggle("hidden", !(browserMode && camErr));
+  if (browserMode && camErr) { dot.classList.add("bad"); $("camtext").textContent = camErr; return; }
+  if (browserMode && !joined) { dot.classList.add("warn"); $("camtext").textContent = (info && info.open_join ? "Type your name and ID and join." : "Enter your access code and join.") + "  Your browser will then ask to use the camera: choose Allow."; return; }
   if (c.state === "off") { dot.classList.add("warn"); text = c.message; }
   else if (c.state === "starting") { text = "Starting the camera..."; }
   else if (c.state === "error") { dot.classList.add("bad"); text = c.message; }
@@ -231,15 +267,19 @@ async function pollInfo() {
     if (r.ok) { info = r.data; $("title").textContent = info.title;
       document.title = info.title;
       $("meta").textContent = `${info.questions} multiple-choice questions, ${info.minutes} minutes.`;
+      browserMode = !!info.browser;
+      $("idfields").classList.toggle("hidden", browserMode && !info.open_join); $("codefield").classList.toggle("hidden", !browserMode || !!info.open_join || joined);
+      $("browserconsent").classList.toggle("hidden", !browserMode);
       $("roomconsent").classList.toggle("hidden", !info.room);
       $("faceconsent").classList.toggle("hidden", !info.face); $("facerule").classList.toggle("hidden", !info.face);
       showCamera(info.camera); updateStartButton(); }
   } catch (e) { $("camtext").textContent = "Cannot reach the exam server."; }
 }
-["name", "cid", "consent"].forEach(id => $(id).addEventListener("input", updateStartButton));
+["name", "cid", "consent", "codeinput"].forEach(id => $(id).addEventListener("input", updateStartButton));
 $("go").addEventListener("click", async () => {
   $("starterr").textContent = "";
   $("go").disabled = true;
+  if (browserMode) return browserGo();
   try { await document.documentElement.requestFullscreen(); wasFullscreen = true; } catch (e) { wasFullscreen = false; }
   const r = await api("/api/start", {name: $("name").value, candidate_id: $("cid").value, consent: $("consent").checked});
   if (!r.ok) { $("starterr").textContent = r.data.error || "Could not start."; updateStartButton();
@@ -249,6 +289,119 @@ $("go").addEventListener("click", async () => {
   flow = {gaze: !!r.data.gaze, face: !!r.data.face};
   if (flow.face) await faceCheck(); else if (flow.gaze) await calibrate(); else await beginExam();
 });
+
+// ------------------------------- browser camera (many candidates, one exam computer) -------------------------------
+// The candidate only has a browser: this page opens the camera and posts small pictures to the exam computer, which
+// does all the analysis. Nothing here decides anything about the exam.
+async function browserGo() {
+  if (!joined) return doJoin();
+  try { await document.documentElement.requestFullscreen(); wasFullscreen = true; } catch (e) { wasFullscreen = false; }
+  const p = (await api("/api/prepare", {})).data || prep || {};
+  flow = {gaze: !!p.gaze, face: !!p.face};
+  if (flow.face) await faceCheck(); else if (flow.gaze) await calibrate(); else await beginExam();
+}
+async function doJoin() {
+  const r = await api("/api/join", info.open_join ? {name: $("name").value.trim(), candidate_id: $("cid").value.trim(), consent: $("consent").checked}
+                                                  : {code: $("codeinput").value, consent: $("consent").checked});
+  if (!r.ok) { $("starterr").textContent = r.data.error || "Could not join."; updateStartButton(); return; }
+  token = r.data.token; joined = true;
+  try { sessionStorage.setItem("exam-token", token); } catch (e) {}
+  afterJoin(r.data);
+  await startCamera();
+  if (r.data.begun) await resumeWhenCameraWorks();
+}
+function afterJoin(d) {
+  $("codefield").classList.add("hidden"); $("idfields").classList.add("hidden");
+  $("joined").textContent = ""; $("who").textContent = d.name;
+  $("meta").textContent = `Hello, ${d.name} (${d.candidate_id}). ${info.questions} multiple-choice questions, ${info.minutes} minutes.`;
+  $("selfview").classList.remove("hidden");
+  prepareLoop();
+}
+async function prepareLoop() {
+  if (preparing) return; preparing = true;
+  while (token && !finished && !exam) {
+    const r = await api("/api/prepare", {});
+    if (r.ok) { prep = r.data; showCamera(r.data.camera); updateStartButton(); }
+    await sleep(700);
+  }
+  preparing = false;
+}
+async function resumeWhenCameraWorks() {
+  for (let i = 0; i < 40 && !(prep && prep.camera && prep.camera.state === "running"); i++) await sleep(500);
+  await loadExam();
+}
+function cameraMessage(e) {
+  const n = e && e.name;
+  if (n === "NotAllowedError" || n === "PermissionDeniedError" || n === "SecurityError")
+    return "The camera is blocked. Click the camera or lock icon next to the address, choose Allow, then press \"Try the camera again\".";
+  if (n === "NotFoundError" || n === "DevicesNotFoundError" || n === "OverconstrainedError")
+    return "No camera was found on this computer. Connect one and press \"Try the camera again\".";
+  if (n === "NotReadableError" || n === "TrackStartError" || n === "AbortError")
+    return "The camera is being used by another program or browser tab. Close it and press \"Try the camera again\".";
+  if (n === "NotSupportedError") return "This browser will not use the camera here. Check the browser's camera setting for this site, or try another browser, then press \"Try the camera again\".";
+  return "The camera could not be started" + (e && e.message ? " (" + e.message + ")" : "") + ".";
+}
+async function startCamera() {
+  camErr = "";
+  if (camStream && camStream.getVideoTracks().some(t => t.readyState === "live")) return true;
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    camErr = "This page cannot use the camera because it was not opened through a secure address. Ask the invigilator for the exam address that starts with https://.";
+    showCamera({}); updateStartButton(); return false;
+  }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({video: {width: {ideal: 640}, height: {ideal: 480}, facingMode: "user"}, audio: false});
+  } catch (e) { camStream = null; camErr = cameraMessage(e); showCamera({}); updateStartButton(); return false; }
+  for (const id of ["capvideo", "selfview"]) { const v = $(id); v.srcObject = camStream; v.play().catch(() => {}); }
+  const track = camStream.getVideoTracks()[0];
+  track.addEventListener("ended", cameraLost);
+  camErr = ""; showCamera(prep ? prep.camera : {}); updateStartButton();
+  pumpOn = true; pump();
+  return true;
+}
+$("camretry").addEventListener("click", async () => { if (await startCamera() && exam) $("camwarn").classList.add("hidden"); });
+function cameraLost() {
+  if (finished) return;
+  camStream = null; pumpOn = false;
+  if (exam) { $("camwarn").classList.remove("hidden"); reconnectCamera(); }
+  else { camErr = "The camera stopped. Check that it is connected and press \"Try the camera again\"."; showCamera({}); updateStartButton(); }
+}
+async function reconnectCamera() {
+  while (!finished && !camStream) { if (await startCamera()) break; await sleep(2000); }
+  $("camwarn").classList.add("hidden");
+}
+function stopCamera() {
+  pumpOn = false; pumpGen++;
+  if (camStream) { camStream.getTracks().forEach(t => { t.stop(); }); camStream = null; }
+}
+async function pump() {
+  const gen = ++pumpGen, canvas = document.createElement("canvas"), ctx = canvas.getContext("2d");
+  let fps = (info && info.frame_fps) || 4;
+  while (pumpOn && gen === pumpGen && token) {
+    const t0 = performance.now(), v = $("capvideo");
+    if (v.videoWidth > 0 && v.readyState >= 2) {
+      const w = Math.min((info && info.frame_width) || 640, v.videoWidth), h = Math.round(w * v.videoHeight / v.videoWidth);
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      ctx.drawImage(v, 0, 0, w, h);                 // not mirrored: the exam computer expects what a webcam gives
+      const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", (info && info.frame_quality) || 0.6));
+      if (blob && gen === pumpGen) {
+        try {
+          const r = await fetch(`/api/frame?token=${encodeURIComponent(token)}`, {method: "POST", headers: {"Content-Type": "image/jpeg"}, body: blob, cache: "no-store"});
+          if (r.status === 401) { cutOff(); return; }
+          if (r.status === 410) { pumpOn = false; return; }
+          if (r.ok) { const d = await r.json(); if (d.fps > 0) fps = Math.min(15, d.fps); }
+        } catch (e) {}
+      }
+    }
+    await sleep(Math.max(20, 1000 / fps - (performance.now() - t0)));
+  }
+}
+function cutOff() {
+  if (finished) return;
+  finished = true; stopCamera(); clearInterval(window._tick); clearInterval(window._poll);
+  $("cut").classList.remove("hidden"); $("fs").classList.add("hidden");
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  try { sessionStorage.removeItem("exam-token"); } catch (e) {}
+}
 
 // ------------------------------- face check -------------------------------
 // The camera program takes a few pictures of the face and keeps comparing the live face with them.
@@ -303,7 +456,7 @@ async function pumpFrames() {
   }
 }
 async function calibrate() {
-  showOnly("calview"); $("calpanel").classList.add("hidden"); $("calcancel").classList.remove("hidden");
+  showOnly("calview"); $("calpanel").classList.add("hidden"); $("calcancel").classList.add("hidden");
   const r = await api("/api/cal/start", {w: window.innerWidth, h: window.innerHeight});
   if (!r.ok) return calFailed(r.data.error || "The calibration could not start.");
   calRunning = true; pumpFrames();
@@ -317,10 +470,14 @@ async function calibrate() {
     return calFailed(s.state === "cancelled" ? "The calibration was cancelled." : "The camera could not see your eyes clearly enough. Check the light on your face, sit still and try again.");
   }
 }
+// Calibration is required: there is no way to skip it or to start the exam without it. A failed calibration just
+// explains what to fix and starts again by itself.
+let calAttempts = 0;
 function calFailed(msg) {
-  calPanel("Gaze calibration", msg, [
-    {label: "Calibrate again", primary: true, fn: () => { enterFullscreen().then(calibrate); }},
-    {label: "Continue without gaze tracking", fn: async () => { await api("/api/cal/skip", {reason: msg}); beginExam(); }}]);
+  calAttempts++;
+  const help = calAttempts >= 3 ? " If this keeps happening, call the invigilator." : "";
+  calPanel("Gaze calibration", msg + help + " The calibration starts again by itself in a few seconds.", []);
+  setTimeout(() => { if (!finished) enterFullscreen().then(calibrate); }, 6000);
 }
 $("calcancel").addEventListener("click", () => api("/api/cal/key", {key: "esc"}));
 document.addEventListener("keydown", e => { if (calRunning && e.code === "Space") { e.preventDefault(); api("/api/cal/key", {key: "space"}); } });
@@ -338,7 +495,7 @@ async function loadExam() {
   if (!r.data.begun) {
     showOnly("calview");
     return calPanel("Your exam has not started", "Click to set up the face check and gaze tracking and begin.",
-      [{label: "Continue", primary: true, fn: async () => { await enterFullscreen(); flow = {gaze: !!(info && info.gaze), face: !!(info && info.face)};
+      [{label: "Continue", primary: true, fn: async () => { await enterFullscreen(); const pp = prep || info || {}; flow = {gaze: !!pp.gaze, face: !!pp.face};
         if (flow.face) faceCheck(); else if (flow.gaze) calibrate(); else beginExam(); }}]);
   }
   exam = r.data; remaining = exam.remaining; lastSync = performance.now();
@@ -482,7 +639,7 @@ $("yes").addEventListener("click", async () => {
   if (r.data && r.data.finished) showDone(r.data);
 });
 function showDone(d) {
-  finished = true; calRunning = false; clearInterval(window._tick); clearInterval(window._poll);
+  finished = true; calRunning = false; clearInterval(window._tick); clearInterval(window._poll); stopCamera();
   showOnly("done"); $("fs").classList.add("hidden");
   $("reason").textContent = d.reason === "time up" ? "Time was up, so your exam was submitted automatically." : "Your answers were received.";
   $("score").textContent = d.show_score && d.score !== undefined ? `You scored ${d.score} out of ${d.out_of}` : "";
@@ -519,7 +676,17 @@ document.addEventListener("contextmenu", e => { if (exam && !finished) { e.preve
   await pollInfo();
   let saved = null; try { saved = sessionStorage.getItem("exam-token"); } catch (e) {}
   gazeLoop();
-  if (saved) { token = saved; await loadExam(); if (exam && !finished) report("PAGE_RELOADED", "the exam page was reloaded"); }
+  if (saved && browserMode) {                       // the page was reloaded: take the same sitting up again if the host still has it
+    token = saved;
+    const r = await api("/api/prepare", {});
+    if (!r.ok) { token = null; try { sessionStorage.removeItem("exam-token"); } catch (e) {} }
+    else if (r.data.finished) await loadExam();
+    else {
+      joined = true; prep = r.data; afterJoin({name: r.data.candidate, candidate_id: r.data.candidate_id});
+      await startCamera();
+      if (r.data.begun) { await resumeWhenCameraWorks(); if (exam && !finished) report("PAGE_RELOADED", "the exam page was reloaded"); }
+    }
+  } else if (saved) { token = saved; await loadExam(); if (exam && !finished) report("PAGE_RELOADED", "the exam page was reloaded"); }
   setInterval(() => { if (!token || finished) pollInfo(); }, 1500);
 })();
 </script>

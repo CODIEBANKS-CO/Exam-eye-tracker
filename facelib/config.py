@@ -126,8 +126,8 @@ LOW_LIGHT_WARN = 40        # show an "add light" message below this
 GLANCE_CHECK = True
 GLANCE_MIN_SECONDS = 0.5     # a look-away shorter than this is ignored (noise, a blink of movement)
 GLANCE_GAP_SECONDS = 0.4     # back to the screen for less than this = still the same look-away
-GLANCE_COUNT = 4             # this many look-aways ...
-GLANCE_WINDOW_SECONDS = 30.0 # ... inside this many seconds raise the flag
+GLANCE_COUNT = 3             # this many look-aways ...
+GLANCE_WINDOW_SECONDS = 35.0 # ... inside this many seconds raise the flag
 GLANCE_FLAG_SECONDS = 5.0    # the red banner stays up this long; counting then starts again from zero
 
 # ----------------------- expressions (optional) --------------------------
@@ -176,7 +176,7 @@ ID_ENROL_MIN_FACE_FRACTION = 0.12  # the face must be at least this fraction of 
 ID_UNVERIFIED_SECONDS = 45.0       # flag IDENTITY_UNVERIFIED when no clear front-facing view matched for this long
 
 # --- the room: many candidate computers reporting to one invigilator computer (examapp/hub.py) ---
-ROOM_PREVIEW_MIN_SECONDS = 1.0     # the camera program makes a small preview picture at most this often (when the room asks)
+ROOM_PREVIEW_MIN_SECONDS = 0.4     # the camera program makes a small preview picture at most this often (when the room asks)
 ROOM_PREVIEW_WIDTH = 320           # pixels wide: small on purpose, so a whole room fits on the network
 ROOM_PREVIEW_QUALITY = 60          # JPEG quality of the preview
 ROOM_REPORT_SECONDS = 1.0          # a candidate computer reports its state this often
@@ -204,6 +204,17 @@ SNAPSHOT_DIR = os.path.join(BASE_DIR, "snapshots")
 # Run `python exam_app.py` (see examapp/). The questions live in questions.json.
 EXAM_QUESTIONS_FILE = os.path.join(BASE_DIR, "questions.json")
 EXAM_RESULTS_DIR = os.path.join(BASE_DIR, "results")
+EXAM_DB_FILE = os.path.join(BASE_DIR, "exams.db")   # the exam records, rules and audit log (SQLite)
+
+# --- browser candidates (the exam served to many computers by a web address; their cameras are analysed here) ---
+BROWSER_FRAME_FPS = 6.0            # camera pictures per second each browser sends to the exam computer during the exam
+BROWSER_FRAME_FPS_SETUP = 10.0     # ... while the face check and the gaze calibration collect readings (they need about 8 or more)
+BROWSER_FRAME_WIDTH = 640          # width in pixels of those pictures (a wider picture costs more network and processor)
+BROWSER_FRAME_QUALITY = 0.6        # JPEG quality of those pictures (0 to 1)
+BROWSER_STALE_SECONDS = 5.0        # no picture for this long: the camera counts as lost
+BROWSER_MAX_FRAME = 400_000        # bytes: a bigger picture is refused
+BROWSER_MAX_SITTINGS = 60          # most candidates sitting at once on one exam computer (each runs its own analysis)
+EXAM_HTTPS_PORT = 8443             # the port candidates use when the exam is served to many computers
 EXAM_MINUTES = 20                  # time allowed (the server keeps the clock, not the page)
 EXAM_SHUFFLE_QUESTIONS = True      # each candidate gets the questions in a different order
 EXAM_SHUFFLE_OPTIONS = True        # ... and the answer options in a different order

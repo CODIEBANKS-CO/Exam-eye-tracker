@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camera stream test</title>
+<style>
+  :root { --bg:#f4f6f8; --ink:#16202c; --muted:#566475; --card:#fff; --line:#d5dbe3; --accent:#0e6b72; --bad:#b3261e; --ok:#1d7a3a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#10161d; --ink:#e7ecf2; --muted:#9aa8b8; --card:#18212b; --line:#2b3745; --accent:#46b8c0; --bad:#ff8a80; --ok:#6fd08c; } }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,sans-serif; }
+  main { max-width:44rem; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; } p { margin:8px 0; } .muted { color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin:16px 0; }
+  label { display:inline-block; margin:0 14px 8px 0; } input, select { font:inherit; padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); }
+  button { font:inherit; font-weight:600; padding:8px 18px; border-radius:8px; border:0; background:var(--accent); color:#fff; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  #msg { font-weight:600; } #msg.bad { color:var(--bad); } #msg.ok { color:var(--ok); }
+  video { width:100%; max-width:320px; border-radius:8px; background:#000; transform:scaleX(-1); display:block; }
+  video[hidden] { display:none; } dl { display:grid; grid-template-columns:max-content 1fr; gap:4px 16px; margin:8px 0 0; } dt { color:var(--muted); } dd { margin:0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Camera stream test</h1>
+  <p class="muted">Part of the feasibility test for browser-only candidates. Your camera pictures are sent to the computer that served this page, analysed there, and thrown away. Nothing is saved.</p>
+
+  <div class="card">
+    <p id="secure"></p>
+    <p><b>Your browser will ask for permission to use the camera. Choose Allow.</b> The test cannot run without it.</p>
+    <div>
+      <label>Pretend to be <input id="streams" type="number" min="1" max="16" value="1" style="width:4em"> students from this camera</label>
+      <label>Pictures per second <select id="fps"><option>3</option><option>5</option><option selected>6</option><option>8</option><option>10</option><option>15</option></select></label>
+      <label>Width <select id="width"><option>320</option><option>480</option><option selected>640</option><option>960</option><option>1280</option></select></label>
+    </div>
+    <button id="go" type="button">Start camera</button>
+    <p id="msg" role="status" aria-live="polite"></p>
+  </div>
+
+  <div class="card" id="live" hidden>
+    <video id="video" playsinline muted></video>
+    <dl>
+      <dt>Camera gives</dt><dd id="cam">-</dd>
+      <dt>Sending</dt><dd id="sending">-</dd>
+      <dt>Round trip</dt><dd id="rtt">-</dd>
+      <dt>Upload</dt><dd id="up">-</dd>
+      <dt>Computer says</dt><dd id="said">-</dd>
+    </dl>
+    <p class="muted">Open <a id="dashlink" href="/dash" target="_blank" rel="noopener">the numbers page</a> on the computer running the test.</p>
+  </div>
+</main>
+<canvas id="canvas" hidden></canvas>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const q = new URLSearchParams(location.search);
+const clamp = (v, lo, hi, d) => { v = Number(v); return Number.isFinite(v) && v >= lo ? Math.min(hi, v) : d; };
+if (q.get("streams")) $("streams").value = clamp(q.get("streams"), 1, 16, 1);
+if (q.get("fps")) $("fps").value = clamp(q.get("fps"), 1, 15, 6);
+if (q.get("w")) $("width").value = clamp(q.get("w"), 320, 1280, 640);
+const st = window.__st = {secure: window.isSecureContext && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia), permission: "unknown",
+                          sent: 0, ok: 0, failed: 0, skipped: 0, last: null, running: false, error: ""};
+function say(text, kind) { $("msg").textContent = text; $("msg").className = kind || ""; }
+
+if (!st.secure) {
+  $("secure").textContent = "This page was opened at " + location.origin + ", which your browser treats as not secure, so it will not let any page use the camera here. " +
+    "Open the same address starting with https:// instead (accept the certificate warning once).";
+  $("secure").className = "bad"; $("go").disabled = true; st.error = "insecure-context";
+  say("The camera is blocked on this address.", "bad");
+} else {
+  $("secure").textContent = "Secure connection: the browser allows the camera on this address.";
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions.query({name: "camera"}).then(p => { st.permission = p.state; p.onchange = () => { st.permission = p.state; }; }).catch(() => {});
+  }
+}
+
+function explain(e) {
+  const n = e && e.name || "Error";
+  st.error = n;
+  if (n === "NotAllowedError" || n === "SecurityError") say("The camera is blocked. Click the camera or padlock icon next to the address, set Camera to Allow, then reload this page.", "bad");
+  else if (n === "NotFoundError" || n === "OverconstrainedError") say("No camera was found on this computer.", "bad");
+  else if (n === "NotReadableError" || n === "AbortError") say("The camera is in use by another program. Close it and try again.", "bad");
+  else if (n === "NotSupportedError") say("This browser could not ask for the camera here. Use an up-to-date Chrome or Edge, and make sure the address starts with https://.", "bad");
+  else say("The camera could not be opened (" + n + ").", "bad");
+}
+
+async function start() {
+  $("go").disabled = true; say("Waiting for you to allow the camera...");
+  const N = clamp($("streams").value, 1, 16, 1), FPS = clamp($("fps").value, 1, 15, 6), W = clamp($("width").value, 320, 1280, 640);
+  let media;
+  try {
+    media = await navigator.mediaDevices.getUserMedia({video: {width: {ideal: W}, height: {ideal: Math.round(W * 3 / 4)}, facingMode: "user"}, audio: false});
+  } catch (e) { explain(e); $("go").disabled = false; return; }
+  const video = $("video"); video.srcObject = media; $("live").hidden = false;
+  await video.play().catch(() => {});
+  await new Promise(r => { if (video.videoWidth) r(); else video.addEventListener("loadedmetadata", r, {once: true}); });
+  const track = media.getVideoTracks()[0], s = track.getSettings();
+  $("cam").textContent = (s.width || video.videoWidth) + " x " + (s.height || video.videoHeight) + (s.frameRate ? " at " + Math.round(s.frameRate) + " fps" : "");
+  track.addEventListener("ended", () => { st.running = false; say("The camera stopped.", "bad"); });
+  const cw = Math.min(W, video.videoWidth), ch = Math.round(cw * video.videoHeight / video.videoWidth);
+  const canvas = $("canvas"); canvas.width = cw; canvas.height = ch; const ctx = canvas.getContext("2d");
+  const ids = Array.from({length: N}, () => "s" + Math.random().toString(36).slice(2, 10));
+  const busy = ids.map(() => false), rtts = ids.map(() => 0);
+  let encoding = false, bytes = 0, lastBytes = 0, lastOk = 0, lastAt = performance.now(), rttSum = 0, rttN = 0;
+  st.running = true; st.ids = ids; say("Camera allowed. Sending " + N + " stream" + (N > 1 ? "s" : "") + " at " + FPS + " pictures per second.", "ok");
+
+  function send(i, blob) {
+    busy[i] = true; st.sent++;
+    const t = performance.now(), headers = rtts[i] ? {"X-Rtt": String(rtts[i])} : {};
+    fetch("/frame?id=" + ids[i], {method: "POST", body: blob, headers}).then(r => r.json()).then(j => {
+      rtts[i] = Math.round(performance.now() - t); rttSum += rtts[i]; rttN++; bytes += blob.size; st.ok++; st.last = j;
+    }).catch(() => { st.failed++; }).finally(() => { busy[i] = false; });
+  }
+  setInterval(() => {
+    if (!st.running || encoding) { st.skipped++; return; }
+    encoding = true; ctx.drawImage(video, 0, 0, cw, ch);
+    canvas.toBlob(blob => {
+      encoding = false;
+      if (!blob) return;
+      ids.forEach((_, i) => { if (busy[i]) st.skipped++; else send(i, blob); });
+    }, "image/jpeg", 0.6);
+  }, Math.round(1000 / FPS));
+  setInterval(() => {
+    const now = performance.now(), dt = (now - lastAt) / 1000;
+    const got = (st.ok - lastOk) / dt / N;
+    $("sending").textContent = got.toFixed(1) + " pictures per second per stream (asked for " + FPS + "); " + st.failed + " failed, " + st.skipped + " skipped because the last one was not answered yet"
+      + (document.hidden ? ". WARNING: this tab is hidden, so the browser slows it down and the test is too light. Keep this tab in view (open /dash in a separate window beside it, or on another computer)."
+        : got < 0.7 * FPS && st.ok > 0 ? ". WARNING: sending far fewer pictures than asked for, so the test is lighter than planned. Close other tabs, or check the tab is in view." : "");
+    $("up").textContent = (((bytes - lastBytes) / dt) / 1024).toFixed(0) + " KB/s in total, " + ((bytes - lastBytes) / dt / 1024 / N).toFixed(0) + " KB/s per stream";
+    $("rtt").textContent = rttN ? Math.round(rttSum / rttN) + " ms (picture sent to answer received)" : "-";
+    if (st.last) {
+      const l = st.last;
+      $("said").textContent = (l.faces === null ? "pictures received (no face model on that computer)" : l.faces + " face" + (l.faces === 1 ? "" : "s") + " seen, analysed in " + l.ms + " ms") + (l.flags && l.flags.length ? ", flags: " + l.flags.join(", ") : "") + (l.error ? " [" + l.error + "]" : "");
+    }
+    lastAt = now; lastBytes = bytes; lastOk = st.ok; rttSum = 0; rttN = 0;
+  }, 1000);
+}
+$("go").addEventListener("click", start);
+</script>
+</body>
+</html>

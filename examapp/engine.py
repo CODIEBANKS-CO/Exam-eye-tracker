@@ -40,6 +40,11 @@ def load_questions(path):
         raise QuestionError(f"Cannot open the question file {path}: {e}")
     except ValueError as e:
         raise QuestionError(f"The question file {path} is not valid JSON: {e}")
+    return parse_questions(data)
+
+
+def parse_questions(data):
+    """Check question data (the same shape as the file, already loaded). Returns (title, [Question])."""
     items = data.get("questions") if isinstance(data, dict) else None
     if not isinstance(items, list) or not items:
         raise QuestionError("The question file needs a non-empty \"questions\" list.")
@@ -101,6 +106,7 @@ class ExamSession:
         self.events = []           # camera flags and browser events, with time and question
         self.finished = None       # the result dict once submitted
         self.finish_reason = None
+        self.exam_meta = {}        # which exam record this attempt belongs to (exam_id, exam_title), set by the app
 
     # ------------------------------- clock -------------------------------
     def begin(self):
@@ -213,6 +219,7 @@ class ExamSession:
             "note": "Flags are evidence for a human reviewer, not proof of anything.",
         }
         self.finished["minutes_used"] = round(self.finished["minutes_used"], 2)
+        self.finished.update(self.exam_meta)
         return self.finished
 
     # ----------------------------- what the page sees ---------------------

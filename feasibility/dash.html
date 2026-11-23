@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stream test numbers</title>
+<style>
+  :root { --bg:#f4f6f8; --ink:#16202c; --muted:#566475; --card:#fff; --line:#d5dbe3; --bad:#b3261e; --ok:#1d7a3a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#10161d; --ink:#e7ecf2; --muted:#9aa8b8; --card:#18212b; --line:#2b3745; --bad:#ff8a80; --ok:#6fd08c; } }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,sans-serif; }
+  main { max-width:62rem; margin:0 auto; padding:24px 16px 48px; } h1 { font-size:1.4rem; margin:0 0 8px; }
+  #verdict { font-size:1.2rem; font-weight:700; padding:12px 16px; border-radius:10px; border:2px solid var(--line); background:var(--card); }
+  #verdict.ok { border-color:var(--ok); color:var(--ok); } #verdict.bad { border-color:var(--bad); color:var(--bad); }
+  .tot { display:flex; flex-wrap:wrap; gap:8px 28px; margin:14px 0; } .tot div span { display:block; color:var(--muted); font-size:.85rem; } .tot b { font-size:1.3rem; }
+  table { border-collapse:collapse; width:100%; background:var(--card); } th, td { text-align:right; padding:6px 10px; border-bottom:1px solid var(--line); } th:first-child, td:first-child { text-align:left; }
+  th { color:var(--muted); font-weight:600; font-size:.85rem; } .muted { color:var(--muted); font-size:.9rem; } td.bad { color:var(--bad); font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Stream test numbers</h1>
+  <p id="verdict">Waiting...</p>
+  <div class="tot">
+    <div><span>Streams</span><b id="n">0</b></div>
+    <div><span>Pictures in / s</span><b id="fin">0</b></div>
+    <div><span>Analysed / s</span><b id="fout">0</b></div>
+    <div><span>Dropped</span><b id="drop">0%</b></div>
+    <div><span>Processor (<span id="cores" style="display:inline"></span> cores)</span><b id="cpu">0%</b></div>
+    <div><span>Network in</span><b id="net">0</b></div>
+    <div><span>Rough ceiling</span><b id="est">-</b></div>
+  </div>
+  <table><thead><tr><th>Stream</th><th>In / s</th><th>Analysed / s</th><th>Dropped %</th><th>Analysis ms (typical / slowest 5%)</th><th>Decode ms</th><th>Waited before analysis ms</th><th>Round trip ms</th><th>KB / s</th><th>Faces</th><th>Flags</th></tr></thead><tbody id="rows"></tbody></table>
+  <p class="muted" id="note"></p>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+async function tick() {
+  try {
+    const d = await (await fetch("/report", {cache: "no-store"})).json();
+    $("verdict").textContent = d.verdict; $("verdict").className = d.verdict.startsWith("KEEPING") ? "ok" : d.verdict.startsWith("AT CAPACITY") ? "bad" : "";
+    $("n").textContent = d.streams; $("fin").textContent = d.fps_in; $("fout").textContent = d.fps_done; $("drop").textContent = d.dropped_pct + "%";
+    $("cores").textContent = d.cores; $("cpu").textContent = d.cpu_pct + "%"; $("net").textContent = d.mbit_s + " Mbit/s";
+    $("est").textContent = d.estimate_streams === null ? "-" : "about " + d.estimate_streams + " streams";
+    const body = $("rows"); body.textContent = "";
+    d.rows.forEach(r => {
+      const tr = document.createElement("tr");
+      [r.id, r.fps_in, r.fps_done, r.dropped_pct, r.ms_med === null ? "-" : r.ms_med + " / " + r.ms_p95, r.decode_ms === null ? "-" : r.decode_ms, r.lag_ms === null ? "-" : r.lag_ms, r.rtt_ms === null ? "-" : r.rtt_ms, r.kb_s,
+       r.faces === null ? "-" : r.faces, (r.flags || []).join(", ") || (r.error || "-")].forEach((v, i) => {
+        const td = document.createElement("td"); td.textContent = v; if ((i === 3 && r.dropped_pct > 10) || (i === 10 && r.error)) td.className = "bad"; tr.appendChild(td); });
+      body.appendChild(tr);
+    });
+    $("note").textContent = d.mode === "full" ? "The rough ceiling assumes the processor use grows in step with the number of streams and keeps a quarter spare. Trust it only after the verdict has said KEEPING UP for a minute or so."
+      : "No face model on this computer, so only the pictures themselves are measured (decode time, network, round trip).";
+  } catch (e) { $("verdict").textContent = "Cannot reach the test program."; $("verdict").className = "bad"; }
+}
+setInterval(tick, 1000); tick();
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 
 import csv
 import os
+import threading
 from datetime import datetime
 
 import cv2
@@ -9,13 +10,25 @@ import cv2
 from . import config as cfg
 
 LOG_HEADER = ["timestamp", "event", "seconds_at_flag", "snapshot", "detail"]
+# Several candidates are monitored by one program in a room, each in its own thread: one lock keeps their rows and
+# snapshot names from mixing (two candidates can raise the same flag in the same second).
+_LOCK = threading.RLock()
 
 
 def log_event(name, seconds, frame, detail=""):
     """Append a row to the CSV log and save a snapshot of the raw frame. Returns the snapshot's path."""
+    with _LOCK:
+        return _log_event(name, seconds, frame, detail)
+
+
+def _log_event(name, seconds, frame, detail):
     os.makedirs(cfg.SNAPSHOT_DIR, exist_ok=True)
     stamp = datetime.now()
     snap = os.path.join(cfg.SNAPSHOT_DIR, f"{stamp:%Y%m%d_%H%M%S}_{name}.jpg")
+    n = 1
+    while os.path.exists(snap):                  # never overwrite another candidate's picture
+        n += 1
+        snap = os.path.join(cfg.SNAPSHOT_DIR, f"{stamp:%Y%m%d_%H%M%S}_{name}_{n}.jpg")
     cv2.imwrite(snap, frame)
     new_file = not os.path.exists(cfg.LOG_FILE)
     if not new_file:
@@ -36,6 +49,11 @@ def log_event(name, seconds, frame, detail=""):
 
 def log_note(name, detail=""):
     """Same CSV, no picture: for events that do not come from the camera (e.g. leaving the exam tab)."""
+    with _LOCK:
+        _log_note(name, detail)
+
+
+def _log_note(name, detail):
     stamp = datetime.now()
     new_file = not os.path.exists(cfg.LOG_FILE)
     if not new_file:

@@ -364,11 +364,15 @@ class CameraMonitor(threading.Thread):
             checks += ident.checks()
         return Monitor(checks)
 
+    def _open_camera(self):
+        """The thing the pictures come from (a webcam here; the browser's pictures in StreamMonitor)."""
+        return open_camera()
+
     def run(self):
         try:
             from gaze_demo import Pipeline, prepare_landmarker_model
             prepare_landmarker_model()
-            cap = open_camera()
+            cap = self._open_camera()
             options = vision.FaceLandmarkerOptions(
                 base_options=mp_python.BaseOptions(model_asset_path=cfg.LANDMARKER_PATH),
                 running_mode=vision.RunningMode.VIDEO, num_faces=2,

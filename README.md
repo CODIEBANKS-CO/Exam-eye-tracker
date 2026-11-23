@@ -33,10 +33,15 @@ address `LANDMARKER_URL` in `facelib/config.py` and save it in `models/`; the tw
 
     gaze_demo.py        runs the camera loop and draws the preview
     exam_app.py         starts the exam (a local web page) with the webcam monitor beside it
+    exams.py            looks after the exam records: list, import, set, publish, start, close, audit
     questions.json      the exam questions (sample set: replace with your own)
     examapp/
         engine.py       exam logic: load/check questions, shuffle, clock, scoring, result record
+        store.py        exam records in exams.db (SQLite): questions, time, rules, status, audit log
         server.py       small local web server (standard library only); never sends the answer key
+        multi.py        many candidates in browsers on one exam computer: join by access code, one sitting each
+        browsercam.py   camera pictures posted by a browser, fed to the same camera checks
+        tls.py          makes the HTTPS certificate (browsers only allow the camera over https)
         monitor.py      the webcam monitor in a background thread; tags flags with the question number
         static/index.html   the exam page (start screen, questions, timer, submit, result)
     enroll_face.py      registers a candidate (identity check, optional)
@@ -135,6 +140,7 @@ calibration, and it only works while both eyes are visible and the head is withi
     python exam_app.py --show-gaze     also draw the candidate's gaze point on their page (for the demo)
     python exam_app.py --no-gaze       camera monitor on, but skip the gaze calibration and look-away alert
     python exam_app.py --questions other.json --minutes 30 --port 9000
+    python exam_app.py --exam EX-7K3QMD   run an exam from the exam records (see "Exam records" below)
 
 The candidate enters a name and ID, ticks the monitoring notice, and starts: 15 multiple-choice
 questions, one at a time, with a question grid, "mark for review", a countdown, and a confirm
@@ -205,6 +211,66 @@ where the candidate was.
 The answer key sits in `questions.json` on the exam computer. For a real exam, keep that file
 on a server the candidate cannot open. Flags are for a human reviewer, never proof.
 
+## Exam records (milestone 2, piece 1)
+
+An exam is now a record, kept in `exams.db` next to the program (SQLite, nothing to install): a title, the
+time allowed, its rules, its questions with the answer key, a status and a log of everything done to it.
+`exam_app.py` runs one of these records. This is the base for the author editor, registered students,
+and the browser-only candidate that follow.
+
+**Nothing changes for you at first.** `python exam_app.py` imports `questions.json` once as an exam (it says
+`Imported ... as exam EX-XXXXXX`), opens it and runs it as before. Starting again reuses the same exam; the
+same file content is never imported twice. If you change the file, it becomes a new exam (a new record).
+The exam page, the camera checks and the result files work as before; the result file also says which exam
+(`exam_id`, `exam_title`).
+
+**The status** says what can happen to an exam:
+
+    draft  ->  published  ->  running  ->  closed  ->  results
+                  ^  |                       |  ^         |
+                  |  +-- back to draft       |  +---------+  (withdraw the results)
+                  +--------- reopen ---------+
+
+* draft: being written. Only a draft can be changed (title, time, rules, questions).
+* published: finished and locked. Candidates cannot sit it yet. It can go back to draft (`unpublish`).
+* running: open for candidates. `python exam_app.py` moves a published exam to running when it starts.
+* closed: no more candidates. results: the results are released.
+* An exam that was never published can be deleted. One that was is kept for the record.
+
+**Commands** (`python exams.py ...`; `--db FILE` uses another records file):
+
+    list                               all exams            show EX-XXXXXX [--key]   one exam (--key shows the answers)
+    import questions.json              make a draft         set EX-XXXXXX --minutes 45 --rule show_score=false
+    publish | unpublish | start | close | release | withdraw | reopen EX-XXXXXX
+    duplicate EX-XXXXXX                a draft copy, for a re-sit or a new version
+    delete EX-XXXXXX                   a draft that was never published
+    audit [EX-XXXXXX] [--verify]       who did what and when; --verify checks the log was not altered
+
+To run a particular exam: `python exam_app.py --exam EX-XXXXXX` (it must be published or running; a draft
+needs `publish` first, a closed one needs `reopen`). `--minutes` and `--no-gaze` on the command line apply to
+that run only and are not saved in the record.
+
+**Rules** an exam can set (each is true, false or left open; open means the setting in `facelib/config.py`):
+`shuffle_questions`, `shuffle_options`, `show_score`, `show_warnings`, `gaze`, `face_required`.
+
+**The time now belongs to the exam.** It is stored when the exam is made (from `EXAM_MINUTES`, or `--minutes`
+at import time in `exams.py`). Changing `EXAM_MINUTES` in `config.py` later does not change an exam that is already
+in the records: use `python exams.py unpublish EX-...`, `set ... --minutes N`, `publish`, or `--minutes N` for one run.
+
+**The audit log** records every change (created, edited, published, started, closed, ...) and, while an exam runs,
+each sitting (registered, started, finished with the result file name). Each row holds a hash of the row
+before it, so `audit --verify` finds a row that was edited or removed afterwards. That catches accidents and
+casual changes; someone who can rewrite the whole `exams.db` file can rewrite the whole chain.
+
+The answer key is kept in `exams.db` and is never sent to a candidate's browser. Keep that file (and `results/`)
+somewhere only the invigilator and author can open.
+
+Tested: 103 checks on the records (validation, every allowed and refused status move, the log and its tamper
+detection, saving and reopening the file, several threads at once), 46 on running an exam from a record and the
+launcher choices (including a real launcher run over HTTP), 6 in Chromium, and the earlier exam flow (22 checks) is unchanged.
+Not done yet in this piece: a web page for authors (next), registered candidates with access codes, a separate
+invigilator key for each exam, and results kept in the database instead of `results/` files.
+
 ## A room of candidates (one invigilator, many computers)
 
 Each candidate sits at their own computer and runs the exam and the camera checks exactly as before. The
@@ -247,6 +313,114 @@ computer; moving them to the hub is part of the CBT engine milestone. The hub is
 or public network the room code and the pictures could be read by others on that network: use a network you
 trust. If the hub program is restarted, its pictures and log of connections are gone and the computers join
 again by themselves; each candidate's own computer still has its results, `events.csv` and snapshots.
+
+## Many candidates, only a browser (milestone 2, piece 2)
+
+Each candidate opens a web address on their own computer, types a personal access code and sits the exam. Nothing
+is installed on their computer. This computer (the **exam computer**) keeps the questions, the answer key, the clock
+and the marking, analyses every candidate's camera pictures, and shows all of them to the invigilator in the same grid
+and list as the room.
+
+**Gaze calibration is required.** When an exam uses gaze tracking there is no "calibrate again or continue without it" choice: a candidate whose calibration fails is told what to fix and the calibration starts again by itself after a few seconds (after three failures the page also says to call the invigilator). The exam server also refuses to start the exam without a good calibration, and refuses the skip request, so it cannot be bypassed from the page. To run an exam without gaze tracking, switch the rule off (`exams.py set EX-... --rule gaze=false`, drafts only) or use `--no-gaze` for one run.
+
+**Live pictures for the invigilator:** in this mode the grid shows each candidate about twice a second, and the candidate whose detail is open about 3 to 4 times a second (the browser sends 4 pictures a second during the exam, `BROWSER_FRAME_FPS`, so that is the most you can see). The older room (`--hub`) shows a picture every few seconds, faster (about 2 a second) for the candidate whose detail is open.
+
+**Test run with no preparation (demo mode).** `python exam_app.py --demo` uses the sample questions (`questions.json`), needs no
+registered list and no access codes: students open the printed address, type their name and ID, allow the camera and start.
+The invigilator console opens by itself on the exam computer. The list of who joined (name, id, status) is written as
+`candidates_EX-....csv` in the project folder and kept up to date. The same ID with the same name again takes the sitting over;
+the same ID with another name is refused. **Anyone on the network can join in this mode**, so use it only for testing.
+
+**Before the exam (on the exam computer):**
+
+    python exams.py import questions.json                       a draft exam (note its id, e.g. EX-7K3QMD)
+    python exams.py publish EX-7K3QMD
+    python exams.py candidates EX-7K3QMD import class.csv       a CSV with a header (name, id) or a JSON list
+    python exams.py candidates EX-7K3QMD export slips.csv       every candidate's access code, for printing
+    pip install cryptography                                    once (it makes the HTTPS certificate)
+    python exam_app.py --exam EX-7K3QMD --serve                 starts the exam for all of them
+
+`--serve` prints the addresses to give out (like `https://192.168.1.20:8443`), the invigilator key and the
+invigilator link (it opens on the exam computer only). Allow the program through the firewall for port 8443 when
+the computer asks. All computers must be on the same network.
+
+**Candidate:** opens the address, accepts the browser's one-time warning (*Advanced*, then *Continue*: the exam computer
+made its own certificate, and a browser only lets a page use the camera over `https://`), types the code from their slip,
+ticks the notice, and allows the camera when the browser asks. They see themselves in a small window, then press
+**Start exam**; the face check, the gaze calibration and the exam follow as before. A blocked, missing or busy camera
+gets a plain message and a *Try the camera again* button. A wrong code gets a plain message; too many wrong codes from one
+computer lock that computer for 30 seconds.
+
+**Same code in a second browser** takes the sitting over: the first browser is cut off with an explanation, the
+invigilator sees a REJOINED flag and the audit log records it. This lets a candidate whose browser crashed carry on, and makes
+someone else using their code visible. A page reload carries on in the same exam.
+
+**If the exam computer is restarted** the sittings in memory are gone. Candidates who were in progress are marked so; for
+each, run `python exams.py candidates EX-7K3QMD reset ID`, and they can join again from the start. Submitted candidates cannot
+sit again. Up to `BROWSER_MAX_SITTINGS` (60) can sit at once; the 61st sees "this exam computer is full".
+
+**Settings** (`facelib/config.py`): `BROWSER_FRAME_FPS` (pictures per second during the exam, 4), `BROWSER_FRAME_FPS_SETUP` (10
+during the face check and the gaze calibration, which need several readings per dot), `BROWSER_FRAME_WIDTH` (640),
+`BROWSER_FRAME_QUALITY`, `BROWSER_STALE_SECONDS` (no pictures for this long counts as a lost camera, 5),
+`EXAM_HTTPS_PORT` (8443). `--no-https` serves plain HTTP (the camera then works only on the exam computer itself).
+
+**What was tested:** the host and sittings with a stand-in for the face model (105 checks: ten sittings together, no
+mix-up of names, answers, pictures or flags, one result each, takeover, reset, locked-out guessing, a full computer, an
+interrupted sitting, bad and oversized pictures, the certificate, HTTPS with keep-alive) and ten real Chromium windows with
+fake cameras over HTTPS (28 checks: joining, camera check, exam, takeover, reload, blocked camera, wrong code, submitting, the
+invigilator's room and pictures). All the older checks still pass.
+
+**Not tested here, so test it before relying on it:**
+
+* The **real face model** on pictures from a browser (this was built without it: a stand-in said how many faces were in a picture).
+* The **face check and the gaze calibration with real faces** from a browser. Calibration needs about 10 pictures per second from
+  every candidate that is calibrating; ten calibrating at once is close to the measured limit of a 12-core computer, so
+  **start the candidates' calibrations a little apart**, and see how it behaves on your computer.
+* **Gaze accuracy at 640 pixels** (the camera program uses a bigger picture).
+* **Ten real computers on a real Wi-Fi**. Do one rehearsal with several real laptops and phones first: the printed address, the firewall,
+  the Wi-Fi speed (about 16 Mbit/s for ten candidates) and the browsers you will really use (Chrome and Edge were the targets).
+
+## Feasibility test for browser-only candidates (milestone 2)
+
+The question: if students only open a web address (nothing installed), can one computer take their camera
+pictures and analyse them all? Two small tools in `feasibility/` answer it on your own hardware.
+
+    pip install cryptography                         once (it makes the HTTPS certificate)
+    python feasibility/stream_test.py                the test server; prints the addresses to open
+    python feasibility/bench_analysis.py             how many pictures per second the analysis alone can do
+
+**stream_test.py** serves a page over HTTPS. Open the printed `https://...` address in a browser, accept the
+certificate warning once (Advanced, then Continue: the certificate is made by the program itself), press **Start
+camera** and choose **Allow** when the browser asks. The page then sends small camera pictures to the test
+computer, which runs the same analysis as the exam (face landmarks and the flag checks) on every stream.
+Open `/dash` on the test computer for the numbers: pictures in and analysed per second, how many were dropped,
+how long a picture waited before analysis, the processor use, the network use, and a verdict (KEEPING UP or
+AT CAPACITY). Keep the page that is sending in view: a browser tab that is hidden or minimised is slowed down by the browser, so open `/dash` in a separate window beside it (or on another computer), and check that the page's own line "pictures per second per stream" is close to what you asked for, otherwise the test is lighter than planned. To pretend to be many students from one webcam: `https://ADDRESS:8443/?streams=10&fps=6`. For a
+cleaner measure, open that page on a second computer so the web page's own work does not use the test
+computer's processor. A slow computer shows up as dropped pictures (the newest is always kept), never as a
+growing delay.
+
+**What to look for with 10 students** (`streams=10`, a minute or so): the verdict says KEEPING UP, dropped is
+under 5%, "waited before analysis" is under about 300 ms and the processor is under about 75%. If not, try
+`fps=4`: the flags that matter last seconds, so 4 pictures per second is usually enough and uses a third less.
+The network use is about 200 KB/s per student at 640 pixels wide (about 16 Mbit/s for 10), which a normal
+local network handles.
+
+**bench_analysis.py** uses one picture of a face (`--image me.jpg`, or one picture from the webcam) and runs
+the analysis on 1, 2 and 4 streams at once as fast as it can, then says roughly how many students that is.
+
+Also shown by the test: over plain `http://` on a network address the browser refuses the camera and the page
+says so (over `http://localhost` it is allowed, which is why today's one-computer exam works), and a student
+who blocks the camera gets a message on how to allow it.
+
+What was and was not checked: the HTTPS certificate, the camera permission, the picture streaming, the
+analysis chain, the dropped-picture behaviour under overload, the refusal of bad requests and the numbers page
+were tested in a real Chromium with a fake camera showing a real face photo (32 checks). **The real face model
+was not available where this was built, so the real analysis speed was never measured**: the test used a
+stand-in, so the figures it printed there say nothing about your computer. Run both tools on the computer that
+would be the hub. Pictures sent by a browser are 640 pixels wide here, not the 1080p the camera program uses
+today, so how well gaze tracking works at that size also still has to be checked. This is a test tool with no
+sign-in: do not leave it running on a shared network.
 
 ## Face match during the exam
 

@@ -13,6 +13,8 @@ exam up again (the page keeps its token for the browser tab).
 import csv
 import hmac
 import json
+import ssl
+import sys
 import mimetypes
 import os
 import secrets
@@ -27,7 +29,9 @@ from .auth import AdminAuth
 from .engine import ExamSession, QuestionError, load_questions  # noqa: F401
 from .hub import MAX_FRAME, MAX_PICTURE, Room  # noqa: F401
 from .monitor import warning_text
+from .store import RULE_NAMES
 
+_SUMMARY_LOCK = threading.Lock()     # several candidates can finish at the same moment (summary.csv is shared)
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 BROWSER_EVENTS = {   # what the page may report -> is it a flag worth keeping in events.csv?
     "LEFT_EXAM_WINDOW": True, "RETURNED_TO_EXAM": False, "FULLSCREEN_EXITED": True,
@@ -40,8 +44,21 @@ MAX_REPORT = 120_000     # a candidate computer's status report (its flags and e
 class ExamApp:
     """Everything the handler needs; separate from HTTP so tests can drive it directly."""
 
-    def __init__(self, monitor, questions_path=None, clock=None, room=None):
-        self.title, self.questions = load_questions(questions_path or cfg.EXAM_QUESTIONS_FILE)
+    def __init__(self, monitor, questions_path=None, clock=None, room=None, exam=None, minutes=None):
+        """The exam is `exam` (an examapp.store.Exam record) or, when none is given, the question file.
+        `minutes` overrides the time allowed for this run only (the --minutes option)."""
+        if exam is not None:
+            self.title, self.questions = exam.title, list(exam.questions)
+            self.exam_id, self.rules = exam.id, dict(exam.rules)
+            self._minutes = minutes if minutes else exam.minutes
+        else:
+            self.title, self.questions = load_questions(questions_path or cfg.EXAM_QUESTIONS_FILE)
+            self.exam_id, self.rules = None, {}
+            self._minutes = minutes or None            # None: follow EXAM_MINUTES in facelib/config.py
+        self.store = None                              # the ExamStore this exam came from (set by the launcher), or None
+        self.browser_camera = False                    # True for a browser candidate: the camera is the pictures the page posts
+        self.context_prefix = ""                       # names the candidate in the event log when several share one log
+        self.on_finish = None                          # called with the result when the sitting ends (set by MultiHost)
         self.monitor = monitor
         self.clock = clock
         self.session = None
@@ -54,13 +71,35 @@ class ExamApp:
         self.room_link = False                        # True when this computer reports to a hub
 
     # ------------------------------ helpers -------------------------------
+    @property
+    def minutes(self):
+        return cfg.EXAM_MINUTES if self._minutes is None else self._minutes
+
+    def _audit(self, action, detail):
+        """Write a line about this exam's sitting to the audit log (never lets a log problem stop the exam)."""
+        if self.store is not None and self.exam_id:
+            try:
+                self.store.log_event(action, self.exam_id, detail, actor="exam-app")
+            except Exception as e:          # noqa: BLE001 - the exam goes on; the console shows the note
+                log_note("AUDIT_LOG_FAILED", str(e))
+
+    def rule(self, name):
+        """An exam rule: the exam record's own setting, or the program's setting when it leaves it open."""
+        value = self.rules.get(name)
+        return getattr(cfg, RULE_NAMES[name]) if value is None else value
+
     def _new_session(self, name, candidate_id):
         kw = {} if self.clock is None else {"clock": self.clock}
-        return ExamSession(self.questions, name, candidate_id, defer_start=True, **kw)
+        s = ExamSession(self.questions, name, candidate_id, minutes=self.minutes, defer_start=True,
+                        shuffle_questions=self.rules.get("shuffle_questions"),
+                        shuffle_options=self.rules.get("shuffle_options"), **kw)
+        if self.exam_id:
+            s.exam_meta = {"exam_id": self.exam_id, "exam_title": self.title}
+        return s
 
     def gaze_wanted(self):
         """Gaze calibration is used when switched on and the camera is really running."""
-        return bool(cfg.EXAM_GAZE) and self.monitor.status["state"] == "running"
+        return bool(self.rule("gaze")) and self.monitor.status["state"] == "running"
 
     def face_wanted(self):
         """The face check is part of the exam when it is switched on and the camera is really running."""
@@ -69,10 +108,11 @@ class ExamApp:
 
     def info(self):
         status = self.monitor.status
-        return {"title": self.title, "questions": len(self.questions), "minutes": cfg.EXAM_MINUTES,
+        return {"title": self.title, "questions": len(self.questions), "minutes": self.minutes,
+                "exam_id": self.exam_id,
                 "camera": status, "in_progress": self.session is not None and self.session.finished is None,
-                "show_score": cfg.EXAM_SHOW_SCORE, "gaze": self.gaze_wanted(), "face": self.face_wanted(),
-                "face_required": bool(cfg.EXAM_FACE_REQUIRED),
+                "show_score": bool(self.rule("show_score")), "gaze": self.gaze_wanted(), "face": self.face_wanted(),
+                "face_required": bool(self.rule("face_required")),
                 "show_gaze": bool(cfg.EXAM_SHOW_GAZE_DOT), "room": bool(self.room_link)}
 
     def _on_flag(self, name, seconds, detail, snapshot=None):
@@ -80,10 +120,13 @@ class ExamApp:
             if self.session is not None and self.session.finished is None:
                 self.session.add_event("camera", name, detail, seconds, snapshot)
 
+    def _tag(self, n):
+        """'Q5', or 'A123 Q5' when several candidates share one event log."""
+        return f"{self.context_prefix} Q{n}".strip() if n else self.context_prefix
+
     def _context(self):
         s = self.session
-        n = None if s is None else s.current_number
-        return f"Q{n}" if n else ""
+        return self._tag(None if s is None else s.current_number)
 
     def _finish(self, reason):
         s = self.session
@@ -94,10 +137,23 @@ class ExamApp:
         if self.result_path is None:
             self.result_path = s.save_result()
             self._append_summary(result)
+            self._audit("sitting_finished", f"candidate {s.candidate_id}: {result['finish_reason']}, "
+                        f"answered {result['answered']}/{result['out_of']}, {len(result['flags'])} flags, "
+                        f"result {os.path.basename(self.result_path)}")
+            if self.on_finish is not None:
+                try:
+                    self.on_finish(result)
+                except Exception as e:          # noqa: BLE001 - the candidate's result is saved; the host logs the problem
+                    log_note("FINISH_HOOK_FAILED", str(e))
         return result
 
     def _append_summary(self, result):
         path = os.path.join(cfg.EXAM_RESULTS_DIR, "summary.csv")
+        with _SUMMARY_LOCK:
+            self._write_summary_row(path, result)
+
+    def _write_summary_row(self, path, result):
+        os.makedirs(cfg.EXAM_RESULTS_DIR, exist_ok=True)
         new = not os.path.exists(path)
         with open(path, "a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
@@ -120,7 +176,12 @@ class ExamApp:
                 and not self._camera_loss_logged:
             self._camera_loss_logged = True
             s.add_event("system", "CAMERA_MONITOR_STOPPED", status.get("message", ""))
-            log_note("CAMERA_MONITOR_STOPPED", status.get("message", ""))
+            log_note("CAMERA_MONITOR_STOPPED", f"{self.context_prefix}: {status.get('message', '')}".lstrip(": "))
+        elif s is not None and s.begun and s.finished is None and status["state"] == "running" \
+                and self._camera_loss_logged and self.browser_camera:
+            self._camera_loss_logged = False          # a browser's pictures can come back; a webcam that failed does not
+            s.add_event("system", "CAMERA_RESTORED", "the camera pictures are coming again")
+            log_note("CAMERA_RESTORED", self.context_prefix)
 
     def _auth(self, body):
         s = self.session
@@ -131,14 +192,14 @@ class ExamApp:
     def _final_view(self):
         r = self.session.finished
         out = {"finished": True, "reason": r["finish_reason"], "answered": r["answered"],
-               "out_of": r["out_of"], "show_score": cfg.EXAM_SHOW_SCORE}
-        if cfg.EXAM_SHOW_SCORE:
+               "out_of": r["out_of"], "show_score": bool(self.rule("show_score"))}
+        if self.rule("show_score"):
             out["score"] = r["score"]
         return out
 
     # ------------------------------- routes -------------------------------
-    def handle(self, method, path, body):
-        """Return (status, json-able dict)."""
+    def handle(self, method, path, body, ip=""):
+        """Return (status, json-able dict). `ip` is the caller's address (used by the many-candidates host)."""
         with self.lock:
             self._check_time()
             self._check_camera()
@@ -163,7 +224,7 @@ class ExamApp:
                     except (TypeError, ValueError):
                         pass
                 warn = ""
-                if cfg.EXAM_SHOW_WARNINGS and s.begun:
+                if self.rule("show_warnings") and s.begun:
                     warn = warning_text(self.monitor.status.get("active", []))
                 return 200, {"finished": False, "remaining": round(s.remaining(), 1), "warning": warn,
                              "camera": self.monitor.status["state"]}
@@ -171,6 +232,8 @@ class ExamApp:
                 if s.finished is not None:
                     return 200, self._final_view()
                 return 200, s.payload()
+            if method == "POST" and path == "/api/prepare":
+                return 200, self._prepare(s)
             if s.finished is not None:
                 return 409, self._final_view()
             if method == "POST" and path.startswith("/api/face/"):
@@ -213,10 +276,33 @@ class ExamApp:
                          + " Fix it, or restart with --no-camera."}
         if state == "starting":
             return 503, {"error": "The camera is still starting. Wait a moment and try again."}
+        self.register(name, cid)
+        return 200, {"token": self.session.token, "gaze": self.gaze_wanted(), "face": self.face_wanted()}
+
+    def register(self, name, cid):
+        """Open a sitting for this candidate (the exam has not begun: the clock starts after the setup steps)."""
         self.session, self.result_path, self._camera_loss_logged = self._new_session(name, cid), None, False
         self.session_number += 1
         log_note("EXAM_REGISTERED", f"{name} ({cid})")
-        return 200, {"token": self.session.token, "gaze": self.gaze_wanted(), "face": self.face_wanted()}
+        self._audit("sitting_registered", f"candidate {cid}")
+        return self.session
+
+    def _prepare(self, s):
+        """What the page needs while it sets up a browser candidate: is the camera working, which steps follow."""
+        c = self.monitor.status
+        return {"camera": {k: c.get(k) for k in ("state", "message", "faces", "light")},
+                "gaze": self.gaze_wanted(), "face": self.face_wanted(), "frame_fps": self.frame_fps(),
+                "candidate": s.name, "candidate_id": s.candidate_id, "begun": s.begun, "finished": s.finished is not None}
+
+    def frame_fps(self):
+        """How many camera pictures per second the browser should send now: more while the face check and the gaze
+        calibration collect readings, fewer during the exam."""
+        busy = self.monitor.calibration().get("state") == "running" or self.monitor.face().get("state") == "running"
+        return cfg.BROWSER_FRAME_FPS_SETUP if busy else cfg.BROWSER_FRAME_FPS
+
+    def frame(self, token, raw, ip=""):
+        """A camera picture from a browser (only the many-candidates host takes them)."""
+        return 404, {"error": "This exam does not take camera pictures from a browser."}
 
     # --------------------------- calibration and begin ---------------------------
     def _calibration(self, s, path, body):
@@ -241,6 +327,8 @@ class ExamApp:
             self.monitor.press_key(str(body.get("key", "")))
             return 200, {"ok": True}
         if path == "/api/cal/skip":
+            if self.rule("gaze"):
+                return 403, {"error": "Gaze calibration is required for this exam and cannot be skipped."}
             self.monitor.skip_gaze()
             s.calibration = {"skipped": True, "reason": str(body.get("reason", ""))[:200]}
             s.add_event("system", "GAZE_TRACKING_SKIPPED", s.calibration["reason"])
@@ -261,7 +349,7 @@ class ExamApp:
         if path == "/api/face/status":
             return 200, self.monitor.face()
         if path == "/api/face/skip":
-            if cfg.EXAM_FACE_REQUIRED:
+            if self.rule("face_required"):
                 return 403, {"error": "The face check is required for this exam."}
             reason = str(body.get("reason", ""))[:200]
             self.monitor.skip_face(reason)
@@ -281,6 +369,9 @@ class ExamApp:
     def _begin(self, s):
         if s.begun:
             return 200, {"ok": True}
+        if self.browser_camera and self.monitor.status["state"] != "running":
+            return 409, {"error": "The camera is not sending pictures. Allow the camera in your browser, "
+                                  "check that it is not used by another program, and try again."}
         face = self.monitor.face() if self.face_wanted() else None
         if face is not None and face.get("state") not in ("done", "skipped"):
             return 409, {"error": "Complete the face check first (or choose to continue without it)."}
@@ -291,8 +382,8 @@ class ExamApp:
             log_note("FACE_ENROLLED", f"{s.name} ({s.candidate_id}) {s.face_match.get('reference_pictures')} pictures, "
                      f"consistency {s.face_match.get('reference_consistency')}")
         cal = self.monitor.calibration()
-        if self.gaze_wanted() and cal.get("state") not in ("done", "skipped"):
-            return 409, {"error": "Calibrate your gaze first (or choose to continue without it)."}
+        if self.gaze_wanted() and not (cal.get("state") == "done" and cal.get("good")) and cal.get("state") != "skipped":
+            return 409, {"error": "Calibrate your gaze first. The exam cannot start without a good calibration."}
         if cal.get("state") == "done":
             s.calibration = {k: v for k, v in cal.items() if k != "state"}
             log_note("GAZE_CALIBRATED", f"{s.name} ({s.candidate_id}) accuracy about "
@@ -300,6 +391,7 @@ class ExamApp:
         s.begin()
         self.monitor.begin_exam(self._on_flag, self._context)
         log_note("EXAM_STARTED", f"{s.name} ({s.candidate_id})")
+        self._audit("sitting_started", f"candidate {s.candidate_id}")
         return 200, {"ok": True}
 
     def _browser_event(self, s, body):
@@ -311,7 +403,8 @@ class ExamApp:
         detail = str(body.get("detail", ""))[:200]
         event = s.add_event("browser", name, detail)
         if BROWSER_EVENTS[name]:
-            log_note(name, f"Q{event['question']}: {detail}" if event["question"] else detail)
+            log_note(name, f"{self._tag(event['question'])}: {detail}" if event["question"] else
+                     f"{self.context_prefix}: {detail}".lstrip(": "))
         return 200, {"ok": True}
 
     # ----------------------------- invigilator view -----------------------------
@@ -340,7 +433,7 @@ class ExamApp:
             self._check_time()
             s = self.session
             status = self.monitor.status
-            out = {"title": self.title, "minutes": cfg.EXAM_MINUTES, "off_margin": cfg.GAZE_OFF_MARGIN,
+            out = {"title": self.title, "exam_id": self.exam_id, "minutes": self.minutes, "off_margin": cfg.GAZE_OFF_MARGIN,
                    "camera": status["state"], "camera_message": status.get("message", ""),
                    "faces": status.get("faces"), "light": status.get("light"),
                    "active": status.get("active", []), "gaze": self.monitor.gaze(),
@@ -356,7 +449,7 @@ class ExamApp:
                     "events": s.events[-60:], "event_count": len(s.events),
                     "score": s.finished["score"] if s.finished else None,
                     "calibration": s.calibration, "face_match": s.face_match}
-                out["elapsed"] = round(max(0.0, cfg.EXAM_MINUTES * 60 - s.remaining()), 1) if s.begun else 0.0
+                out["elapsed"] = round(max(0.0, self.minutes * 60 - s.remaining()), 1) if s.begun else 0.0
             return out
 
     def admin_history(self, token, limit=12):
@@ -465,9 +558,42 @@ def _lan_names():
     return names
 
 
+class QuietServer(ThreadingHTTPServer):
+    """A browser closing its page, or a failed certificate check, is normal: say nothing. Anything else is shown."""
+    daemon_threads = True
+    https = False
+
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (ConnectionError, ssl.SSLError, TimeoutError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def make_handler(app):
     class Handler(BaseHTTPRequestHandler):
         server_version = "ExamServer"
+        protocol_version = "HTTP/1.1"        # keep-alive: a browser that sends camera pictures should not open a new connection each time
+        timeout = 60                         # an idle connection is closed after this many seconds
+
+        def setup(self):
+            self.bad_tls = False
+            if isinstance(self.request, ssl.SSLSocket):
+                try:
+                    self.request.settimeout(10)
+                    self.request.do_handshake()      # in this connection's own thread, never in the accept loop
+                    self.request.settimeout(None)
+                except (ssl.SSLError, OSError):
+                    self.bad_tls = True
+            super().setup()
+
+        def handle(self):
+            if not self.bad_tls:
+                super().handle()
+
+        def _refuse(self, status, payload):
+            """Answer without having read the request body: the connection cannot be reused."""
+            self.close_connection = True
+            return self._send(status, payload)
 
         def log_message(self, *args):   # keep the console for flags
             pass
@@ -479,6 +605,8 @@ def make_handler(app):
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
+            if self.close_connection:
+                self.send_header("Connection", "close")
             self.end_headers()
             self.wfile.write(data)
 
@@ -506,7 +634,7 @@ def make_handler(app):
             if not origin:
                 return True
             host = self.headers.get("Host", "")
-            return origin in (f"http://{host}",)
+            return origin == f"{'https' if self.server.https else 'http'}://{host}"
 
         def do_GET(self):
             if not self._allowed_host():
@@ -563,25 +691,39 @@ def make_handler(app):
 
         def do_POST(self):
             if not self._allowed_origin():
-                return self._send(403, {"error": "Forbidden"})
+                return self._refuse(403, {"error": "Forbidden"})
             parts = urlsplit(self.path)
             if parts.path.startswith("/api/hub/"):
                 return self._hub_post(parts)
+            if parts.path == "/api/frame":
+                return self._frame_post(parts)
             try:
                 length = int(self.headers.get("Content-Length", "0"))
-                if length > MAX_BODY:
-                    return self._send(413, {"error": "Too large"})
+                if length < 0 or length > MAX_BODY:
+                    return self._refuse(413, {"error": "Too large"})
                 body = json.loads(self.rfile.read(length) or b"{}")
                 if not isinstance(body, dict):
                     raise ValueError
             except ValueError:
-                return self._send(400, {"error": "Bad request"})
+                return self._refuse(400, {"error": "Bad request"})
             if parts.path == "/api/admin/room/forget":
                 if not app.auth.valid(self.headers.get("X-Admin-Token", "")) or app.room is None:
                     return self._send(403, {"error": "Not signed in"})
                 res = app.room.forget(str(body.get("id", "")))
                 return self._send({"ok": 200, "missing": 404, "busy": 409}[res], {"result": res})
-            status, payload = app.handle("POST", parts.path, body)
+            status, payload = app.handle("POST", parts.path, body, self.client_address[0])
+            self._send(status, payload)
+
+        def _frame_post(self, parts):
+            """A camera picture from a browser candidate: the JPEG itself is the body, the token is in the address."""
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                return self._refuse(400, {"error": "Bad request"})
+            if length <= 0 or length > cfg.BROWSER_MAX_FRAME:
+                return self._refuse(413, {"error": "Too large"})
+            raw = self.rfile.read(length)
+            status, payload = app.frame(parse_qs(parts.query).get("token", [""])[0], raw, self.client_address[0])
             self._send(status, payload)
 
         def _hub_post(self, parts):
@@ -591,9 +733,9 @@ def make_handler(app):
             try:
                 length = int(self.headers.get("Content-Length", "0"))
             except ValueError:
-                return self._send(400, {"error": "Bad request"})
+                return self._refuse(400, {"error": "Bad request"})
             if length < 0 or length > limit:
-                return self._send(413, {"error": "Too large"})
+                return self._refuse(413, {"error": "Too large"})
             raw = self.rfile.read(length)
             name = parse_qs(parts.query).get("name", [""])[0]
             status, payload = app.hub_post(path, self.headers.get("X-Hub-Token", ""), name, raw, self.client_address[0])
@@ -601,6 +743,11 @@ def make_handler(app):
     return Handler
 
 
-def serve(app, host=None, port=None):
-    """Create the HTTP server (not yet running)."""
-    return ThreadingHTTPServer((host or cfg.EXAM_HOST, cfg.EXAM_PORT if port is None else port), make_handler(app))
+def serve(app, host=None, port=None, tls=None):
+    """Create the HTTP server (not yet running). `tls` is (certificate file, key file) to serve HTTPS."""
+    server = QuietServer((host or cfg.EXAM_HOST, cfg.EXAM_PORT if port is None else port), make_handler(app))
+    if tls:
+        from .tls import server_context
+        server.socket = server_context(*tls).wrap_socket(server.socket, server_side=True, do_handshake_on_connect=False)
+        server.https = True
+    return server

@@ -220,7 +220,7 @@
 
   <div class="layout">
     <section aria-label="Candidate and monitor">
-      <figure id="liveBox" hidden><img id="livePic" alt="Live camera picture of the candidate"><figcaption>Camera picture, refreshed every few seconds</figcaption></figure>
+      <figure id="liveBox" hidden><img id="livePic" alt="Live camera picture of the candidate"><figcaption>Live camera picture</figcaption></figure>
       <h2>Candidate</h2>
       <dl class="rows" id="cand"></dl>
       <div class="timeleft num" id="timeleft" hidden></div>
@@ -393,7 +393,7 @@ async function tick() {
     if (e.message === "signed-out") return signOut("The key has changed because the exam program was restarted. Enter the new key.");
     failures++; if (failures >= 3) setLive(false);
   }
-  if (mine === cid) loop = setTimeout(tick, cid ? 500 : 300);
+  if (mine === cid) loop = setTimeout(tick, cid ? 250 : 300);
 }
 
 async function loadHistory() {
@@ -660,7 +660,7 @@ async function roomTick() {
     if (e.message === "signed-out") return signOut("The key has changed because the exam program was restarted. Enter the new key.");
     failures++; if (failures >= 3) setLive(false);
   }
-  if (!cid) roomLoop = setTimeout(roomTick, 1000);
+  if (!cid) roomLoop = setTimeout(roomTick, 500);
 }
 
 function stateText(t) {

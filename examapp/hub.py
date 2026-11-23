@@ -32,8 +32,10 @@ MAX_FRAME = 150_000        # bytes of one preview picture
 MAX_PICTURE = 400_000      # bytes of one flag picture
 MAX_PICTURES = 60          # flag pictures kept per candidate computer
 MAX_EVENTS = 80            # events kept per report
+WATCH_FRAME_EVERY = 0.4      # the computer whose detail the invigilator has open sends pictures this often
+WATCH_SECONDS = 3.0
 FRAME_EVERY = 2.5          # seconds between preview pictures (slower with a big room, see frame_every())
-MINOR = {"RETURNED_TO_EXAM", "RIGHT_CLICK", "PAGE_RELOADED", "FACE_ENROLLED"}
+MINOR = {"RETURNED_TO_EXAM", "RIGHT_CLICK", "PAGE_RELOADED", "FACE_ENROLLED", "CAMERA_RESTORED"}
 NAME_RE = re.compile(r"^[A-Za-z0-9_.\-]{1,120}$")
 CAMERA_STATES = {"starting", "running", "error", "off"}
 SOURCES = {"camera", "browser", "system", "hub"}
@@ -161,6 +163,7 @@ class Client:
         self.lost_at = None                  # monotonic time of the loss
         self.lost_elapsed = None
         self.reports = 0
+        self.watched_at = -1e9               # when the invigilator last had this computer's detail open
 
 
 class Room:
@@ -221,8 +224,14 @@ class Room:
                 if s["face_match"] and s["face_match"].get("reference_snapshot"):
                     names.append(s["face_match"]["reference_snapshot"])
                 need = [n for n in dict.fromkeys(reversed(names)) if n not in have][:4]
-            return {"frame_every": self.frame_every(), "need": need,
+            return {"frame_every": WATCH_FRAME_EVERY if now - c.watched_at < WATCH_SECONDS else self.frame_every(), "need": need,
                     "send_frames": bool(s and not s["finished"])}
+
+    def watched(self, token):
+        """Is the invigilator looking at this computer in detail right now?"""
+        with self.lock:
+            c = self._find(token)
+            return c is not None and self.clock() - c.watched_at < WATCH_SECONDS
 
     def frame_every(self):
         """A bigger room sends its pictures a little less often, so the hub keeps up."""
@@ -346,6 +355,7 @@ class Room:
             c = self.clients.get(cid)
             if c is None or c.report is None:
                 return None
+            c.watched_at = now
             d = dict(c.report)
             s = d["session"]
             if s is not None:
@@ -373,6 +383,15 @@ class Room:
             if s["face_match"]:
                 allowed.add(s["face_match"].get("reference_snapshot"))
             return c.pictures.get(name) if name in allowed else None
+
+    def drop(self, token):
+        """Remove a computer at once, by its own token (the exam computer discarding a sitting it reset)."""
+        with self.lock:
+            c = self._find(token)
+            if c is None:
+                return False
+            del self.clients[c.cid]
+            return True
 
     def forget(self, cid):
         """Remove a computer that is gone. Only allowed once it has lost its connection or finished."""
